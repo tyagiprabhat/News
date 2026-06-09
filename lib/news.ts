@@ -73,6 +73,24 @@ export const NEWS_SOURCES: Record<string, { name: string; url: string; flag: str
     flag: '🇩🇪',
     topics: ['Germany', 'EU', 'International', 'Economy', 'Science'],
   },
+  hindu: {
+    name: 'The Hindu',
+    url: 'https://www.thehindu.com/feeder/default.rss',
+    flag: '🇮🇳',
+    topics: ['India', 'Politics', 'Economy', 'Science', 'International'],
+  },
+  toi: {
+    name: 'Times of India',
+    url: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+    flag: '🇮🇳',
+    topics: ['India', 'Business', 'Sports', 'Entertainment', 'World'],
+  },
+  economist: {
+    name: 'The Economist',
+    url: 'https://www.economist.com/rss/the_world_this_week_rss.xml',
+    flag: '📊',
+    topics: ['Economics', 'Finance', 'Politics', 'Business', 'Global Affairs'],
+  },
 };
 
 const parser = new Parser({
@@ -131,6 +149,9 @@ const SOURCE_TYPES: Record<string, string> = {
   rfi: 'International Radio',
   euronews: 'Pan-European Broadcaster',
   dw: 'Public Broadcaster',
+  hindu: 'National Newspaper',
+  toi: 'National Newspaper',
+  economist: 'Magazine/Analysis',
 };
 
 export function profileSource(sourceKey: string) {

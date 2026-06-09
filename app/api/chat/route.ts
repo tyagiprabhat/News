@@ -24,6 +24,13 @@ EU/European sources:
 - Politico Europe 🇪🇺 — In-depth EU policy, Brussels, European Parliament analysis
 - Deutsche Welle 🇩🇪 — German public broadcaster, Germany and European affairs
 
+Indian sources:
+- The Hindu 🇮🇳 — India's paper of record, strong on politics and international affairs
+- Times of India 🇮🇳 — India's largest English-language daily, broad coverage
+
+Analysis/magazines:
+- The Economist 📊 — Weekly global affairs magazine, economics and policy analysis
+
 Your capabilities:
 1. Fetch and analyze live news from any or all sources
 2. Search for specific topics, people, or events across all feeds
@@ -46,7 +53,7 @@ export async function POST(req: Request) {
       fetchLatestNews: tool({
         description: 'Fetch the latest news articles from EU/French news sources. Use this to get current headlines and stories.',
         parameters: z.object({
-          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'all'])
+          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist', 'all'])
             .optional()
             .default('all')
             .describe('Which source to fetch from. Use "all" for a comprehensive overview.'),
@@ -75,7 +82,7 @@ export async function POST(req: Request) {
         description: 'Search for news articles matching specific keywords or topics across all sources.',
         parameters: z.object({
           query: z.string().describe('Search query — keywords, topic, person, or event to find'),
-          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'all'])
+          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist', 'all'])
             .optional()
             .default('all')
             .describe('Limit search to a specific source or search all'),

@@ -75,7 +75,7 @@ export default function ChatInterface() {
               <div className="text-4xl mb-3">🇪🇺</div>
               <h3 className="text-lg font-semibold text-gray-200 mb-1">Ask about EU & French News</h3>
               <p className="text-sm text-gray-500 max-w-sm">
-                I fetch live articles from 10 free sources — AP, Reuters, BBC, NPR, Al Jazeera, France 24, RFI, Euronews, Politico, and DW — and can translate any content into French, German, Arabic, Spanish, and more.
+                I fetch live articles from 13 free sources — AP, Reuters, BBC, NPR, Al Jazeera, France 24, RFI, Euronews, Politico, DW, The Hindu, Times of India, and The Economist — and can translate any content into French, German, Arabic, Spanish, and more.
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-md">
