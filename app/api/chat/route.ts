@@ -1,27 +1,38 @@
 import { anthropic } from '@ai-sdk/anthropic';
-import { streamText, tool } from 'ai';
+import { streamText, generateText, tool } from 'ai';
 import { z } from 'zod';
 import { fetchNewsFeed, searchNews, NEWS_SOURCES, getAllSourceProfiles } from '@/lib/news';
 
 export const maxDuration = 30;
 export const runtime = 'nodejs';
 
-const SYSTEM_PROMPT = `You are an expert analyst specializing in European Union and French news. You have access to live RSS feeds from five trusted free sources:
+const SYSTEM_PROMPT = `You are an expert analyst and multilingual translator specializing in global news with a deep focus on European Union and French affairs. You have access to live RSS feeds from ten trusted free sources:
 
-- France 24 🇫🇷 — French international broadcaster, strong on France and global politics
+Wire services:
+- AP News 📰 — Associated Press global wire service, authoritative breaking news
+- Reuters 📡 — Reuters global wire, finance and world news
+
+Anglophone broadcasters:
+- BBC News 🇬🇧 — British public broadcaster, strong world and UK coverage
+- NPR 🎙️ — US public radio, US politics and international affairs
+- Al Jazeera 🌍 — Qatar-based international broadcaster, Middle East and global South
+
+EU/European sources:
+- France 24 🇫🇷 — French international broadcaster, France and global politics
 - RFI 📻 — Radio France Internationale, Francophone and African coverage
 - Euronews 🇪🇺 — Pan-European broadcaster, EU institutions and policy
 - Politico Europe 🇪🇺 — In-depth EU policy, Brussels, European Parliament analysis
 - Deutsche Welle 🇩🇪 — German public broadcaster, Germany and European affairs
 
 Your capabilities:
-1. Fetch latest news from any or all sources
-2. Search for specific topics or keywords across all feeds
-3. Compare how different outlets cover the same story (cross-source profiling)
-4. Identify trending topics across EU news landscape
-5. Provide analytical context about EU politics, French affairs, and European integration
+1. Fetch and analyze live news from any or all sources
+2. Search for specific topics, people, or events across all feeds
+3. Cross-source profiling — compare how wire services vs. broadcasters cover the same story
+4. Trend detection — identify what topics are dominating across the news landscape
+5. Translation — translate any text or article snippet between languages (French, German, Spanish, Arabic, English, and more)
+6. Editorial analysis — explain how a story's framing differs between AP/Reuters wire copy and editorial outlets
 
-Always fetch live news before answering questions about current events. When analyzing coverage, note differences in emphasis between sources. Be concise but thorough — cite article titles and sources.`;
+Always fetch live news before answering questions about current events. When comparing sources, note wire services (AP, Reuters) as the baseline — they supply raw facts that outlets then editorialize. Be concise but thorough — cite article titles and sources.`;
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -35,7 +46,7 @@ export async function POST(req: Request) {
       fetchLatestNews: tool({
         description: 'Fetch the latest news articles from EU/French news sources. Use this to get current headlines and stories.',
         parameters: z.object({
-          source: z.enum(['france24', 'rfi', 'euronews', 'politico', 'dw', 'all'])
+          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'all'])
             .optional()
             .default('all')
             .describe('Which source to fetch from. Use "all" for a comprehensive overview.'),
@@ -64,7 +75,7 @@ export async function POST(req: Request) {
         description: 'Search for news articles matching specific keywords or topics across all sources.',
         parameters: z.object({
           query: z.string().describe('Search query — keywords, topic, person, or event to find'),
-          source: z.enum(['france24', 'rfi', 'euronews', 'politico', 'dw', 'all'])
+          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'all'])
             .optional()
             .default('all')
             .describe('Limit search to a specific source or search all'),
@@ -138,6 +149,33 @@ export async function POST(req: Request) {
             })),
             trendingTopics,
             analyzedAt: new Date().toISOString(),
+          };
+        },
+      }),
+
+      translateText: tool({
+        description: 'Translate any text into a target language. Use this when the user asks to translate an article, headline, or any content.',
+        parameters: z.object({
+          text: z.string().describe('The text to translate'),
+          targetLanguage: z.string().describe('Target language name or code, e.g. "French", "German", "Arabic", "Spanish", "English"'),
+          sourceLanguage: z.string().optional().describe('Source language if known — leave blank for auto-detect'),
+        }),
+        execute: async ({ text, targetLanguage, sourceLanguage }) => {
+          const from = sourceLanguage ? `from ${sourceLanguage} ` : '';
+          const { text: translated } = await generateText({
+            model: anthropic('claude-opus-4-8'),
+            messages: [
+              {
+                role: 'user',
+                content: `Translate the following text ${from}into ${targetLanguage}. Return only the translated text, no explanations or notes.\n\n${text}`,
+              },
+            ],
+          });
+          return {
+            original: text,
+            translated,
+            targetLanguage,
+            sourceLanguage: sourceLanguage || 'auto-detected',
           };
         },
       }),

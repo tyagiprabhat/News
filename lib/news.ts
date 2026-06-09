@@ -13,6 +13,36 @@ export interface NewsItem {
 }
 
 export const NEWS_SOURCES: Record<string, { name: string; url: string; flag: string; topics: string[] }> = {
+  ap: {
+    name: 'AP News',
+    url: 'https://feeds.apnews.com/rss/apf-topnews',
+    flag: '📰',
+    topics: ['Breaking News', 'World', 'US', 'Politics', 'Business'],
+  },
+  reuters: {
+    name: 'Reuters',
+    url: 'https://feeds.reuters.com/reuters/topNews',
+    flag: '📡',
+    topics: ['World', 'Business', 'Finance', 'Politics', 'Technology'],
+  },
+  bbc: {
+    name: 'BBC News',
+    url: 'http://feeds.bbci.co.uk/news/rss.xml',
+    flag: '🇬🇧',
+    topics: ['World', 'UK', 'Politics', 'Science', 'Technology'],
+  },
+  npr: {
+    name: 'NPR',
+    url: 'https://feeds.npr.org/1001/rss.xml',
+    flag: '🎙️',
+    topics: ['US', 'World', 'Politics', 'Culture', 'Science'],
+  },
+  aljazeera: {
+    name: 'Al Jazeera',
+    url: 'https://www.aljazeera.com/xml/rss/all.xml',
+    flag: '🌍',
+    topics: ['Middle East', 'World', 'Politics', 'Conflicts', 'Human Rights'],
+  },
   france24: {
     name: 'France 24',
     url: 'https://www.france24.com/en/rss',
@@ -90,6 +120,19 @@ export function searchNews(items: NewsItem[], query: string): NewsItem[] {
   });
 }
 
+const SOURCE_TYPES: Record<string, string> = {
+  politico: 'Policy/Analysis',
+  ap: 'Wire Service',
+  reuters: 'Wire Service',
+  bbc: 'Public Broadcaster',
+  npr: 'Public Radio',
+  aljazeera: 'International Broadcaster',
+  france24: 'International Broadcaster',
+  rfi: 'International Radio',
+  euronews: 'Pan-European Broadcaster',
+  dw: 'Public Broadcaster',
+};
+
 export function profileSource(sourceKey: string) {
   const source = NEWS_SOURCES[sourceKey];
   if (!source) return null;
@@ -97,7 +140,7 @@ export function profileSource(sourceKey: string) {
     key: sourceKey,
     ...source,
     profile: {
-      type: sourceKey === 'politico' ? 'Policy/Analysis' : 'Broadcast/General',
+      type: SOURCE_TYPES[sourceKey] || 'News Outlet',
       language: 'English',
       coverage: source.topics,
       free: true,

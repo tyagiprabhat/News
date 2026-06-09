@@ -11,7 +11,7 @@ export default function Home() {
         <span className="text-lg">🇪🇺</span>
         <span className="text-sm font-semibold text-gray-200">EU News AI</span>
         <span className="text-gray-700 text-xs">|</span>
-        <span className="text-xs text-gray-500">France 24 · RFI · Euronews · Politico · DW</span>
+        <span className="text-xs text-gray-500">AP · Reuters · BBC · NPR · Al Jazeera · France 24 · RFI · Euronews · Politico · DW</span>
       </div>
 
       {/* Left panel — news feed */}

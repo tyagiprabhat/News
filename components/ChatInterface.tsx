@@ -4,11 +4,11 @@ import { useChat } from 'ai/react';
 import { useRef, useEffect } from 'react';
 
 const SUGGESTIONS = [
-  "What's the biggest EU story today?",
-  "How are different outlets covering France?",
-  "What's trending in European politics?",
-  "Compare Germany and France coverage",
-  "Analyze EU policy news this week",
+  "What's breaking across AP, Reuters, and BBC right now?",
+  "Compare how wire services vs. EU broadcasters cover the same story",
+  "What's trending in European politics today?",
+  "Translate the top Al Jazeera headlines into French",
+  "Profile all 10 sources — what makes each unique?",
 ];
 
 function ToolCallBadge({ toolName, state }: { toolName: string; state: string }) {
@@ -17,6 +17,7 @@ function ToolCallBadge({ toolName, state }: { toolName: string; state: string })
     searchNews: '🔍 Searching articles',
     profileSources: '📋 Loading source profiles',
     analyzeCoverage: '📊 Analyzing coverage',
+    translateText: '🌐 Translating',
   };
 
   return (
@@ -74,7 +75,7 @@ export default function ChatInterface() {
               <div className="text-4xl mb-3">🇪🇺</div>
               <h3 className="text-lg font-semibold text-gray-200 mb-1">Ask about EU & French News</h3>
               <p className="text-sm text-gray-500 max-w-sm">
-                I fetch live articles from France 24, RFI, Euronews, Politico Europe, and Deutsche Welle to answer your questions.
+                I fetch live articles from 10 free sources — AP, Reuters, BBC, NPR, Al Jazeera, France 24, RFI, Euronews, Politico, and DW — and can translate any content into French, German, Arabic, Spanish, and more.
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-md">
