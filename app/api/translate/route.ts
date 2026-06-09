@@ -1,11 +1,12 @@
 import { anthropic } from '@ai-sdk/anthropic';
 import { streamText } from 'ai';
+import { buildTranslatePrompt } from '@/lib/translate';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { text, targetLanguage } = await req.json();
+  const { text, targetLanguage, sourceLanguage } = await req.json();
 
   if (!text || !targetLanguage) {
     return Response.json({ error: 'text and targetLanguage are required' }, { status: 400 });
@@ -13,12 +14,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: anthropic('claude-opus-4-8'),
-    messages: [
-      {
-        role: 'user',
-        content: `Translate the following news text into ${targetLanguage}. Preserve proper nouns, place names, and organization names. Return only the translation, no notes or explanations.\n\n${text}`,
-      },
-    ],
+    messages: [{ role: 'user', content: buildTranslatePrompt(text, targetLanguage, sourceLanguage) }],
   });
 
   return result.toTextStreamResponse();

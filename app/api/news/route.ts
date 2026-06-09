@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(req.nextUrl.searchParams.get('limit') || '8', 10);
 
   try {
-    const items = await fetchNewsFeed(source, Math.min(limit, 20));
+    const items = await fetchNewsFeed(source, Math.min(limit, 15));
     return Response.json({ items, fetchedAt: new Date().toISOString() });
   } catch {
     return Response.json({ error: 'Failed to fetch news' }, { status: 500 });

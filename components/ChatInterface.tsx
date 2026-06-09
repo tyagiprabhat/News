@@ -4,11 +4,11 @@ import { useChat } from 'ai/react';
 import { useRef, useEffect } from 'react';
 
 const SUGGESTIONS = [
+  "Give me a morning briefing on EU politics in French",
   "What's breaking across AP, Reuters, and BBC right now?",
-  "Compare how wire services vs. EU broadcasters cover the same story",
-  "What's trending in European politics today?",
-  "Translate the top Al Jazeera headlines into French",
-  "Profile all 10 sources — what makes each unique?",
+  "Briefing: top 5 India stories today in Hindi",
+  "Compare how wire services vs. EU broadcasters frame the same story",
+  "What's trending across all 13 sources right now?",
 ];
 
 function ToolCallBadge({ toolName, state }: { toolName: string; state: string }) {

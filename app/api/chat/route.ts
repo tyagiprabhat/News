@@ -2,44 +2,32 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { streamText, generateText, tool } from 'ai';
 import { z } from 'zod';
 import { fetchNewsFeed, searchNews, NEWS_SOURCES, getAllSourceProfiles } from '@/lib/news';
+import { buildTranslatePrompt } from '@/lib/translate';
+import { buildSummarizePrompt } from '@/lib/summarize';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 export const runtime = 'nodejs';
 
-const SYSTEM_PROMPT = `You are an expert analyst and multilingual translator specializing in global news with a deep focus on European Union and French affairs. You have access to live RSS feeds from ten trusted free sources:
+const SOURCE_ENUM = ['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist'] as const;
 
-Wire services:
-- AP News 📰 — Associated Press global wire service, authoritative breaking news
-- Reuters 📡 — Reuters global wire, finance and world news
+const SYSTEM_PROMPT = `You are an expert analyst, multilingual translator, and news briefing agent covering global affairs with a deep focus on Europe, India, and international politics. You have access to live RSS feeds from 13 trusted free sources:
 
-Anglophone broadcasters:
-- BBC News 🇬🇧 — British public broadcaster, strong world and UK coverage
-- NPR 🎙️ — US public radio, US politics and international affairs
-- Al Jazeera 🌍 — Qatar-based international broadcaster, Middle East and global South
-
-EU/European sources:
-- France 24 🇫🇷 — French international broadcaster, France and global politics
-- RFI 📻 — Radio France Internationale, Francophone and African coverage
-- Euronews 🇪🇺 — Pan-European broadcaster, EU institutions and policy
-- Politico Europe 🇪🇺 — In-depth EU policy, Brussels, European Parliament analysis
-- Deutsche Welle 🇩🇪 — German public broadcaster, Germany and European affairs
-
-Indian sources:
-- The Hindu 🇮🇳 — India's paper of record, strong on politics and international affairs
-- Times of India 🇮🇳 — India's largest English-language daily, broad coverage
-
-Analysis/magazines:
-- The Economist 📊 — Weekly global affairs magazine, economics and policy analysis
+Wire services: AP News 📰, Reuters 📡
+Anglophone broadcasters: BBC 🇬🇧, NPR 🎙️, Al Jazeera 🌍
+European sources: France 24 🇫🇷, RFI 📻, Euronews 🇪🇺, Politico Europe 🇪🇺, Deutsche Welle 🇩🇪
+Indian sources: The Hindu 🇮🇳, Times of India 🇮🇳
+Analysis: The Economist 📊
 
 Your capabilities:
 1. Fetch and analyze live news from any or all sources
 2. Search for specific topics, people, or events across all feeds
-3. Cross-source profiling — compare how wire services vs. broadcasters cover the same story
-4. Trend detection — identify what topics are dominating across the news landscape
-5. Translation — translate any text or article snippet between languages (French, German, Spanish, Arabic, English, and more)
-6. Editorial analysis — explain how a story's framing differs between AP/Reuters wire copy and editorial outlets
+3. Cross-source profiling — compare wire services vs. editorial outlets on the same story
+4. Trend detection — identify what topics dominate the news landscape
+5. Translation — translate any text between languages (French, German, Spanish, Arabic, Hindi, English, and more)
+6. Editorial analysis — explain how framing differs between AP/Reuters wire copy and editorial outlets
+7. Briefings — generate a structured news digest with AI-written 60-word summaries per story, optionally in any language
 
-Always fetch live news before answering questions about current events. When comparing sources, note wire services (AP, Reuters) as the baseline — they supply raw facts that outlets then editorialize. Be concise but thorough — cite article titles and sources.`;
+Always fetch live news before answering questions about current events. When producing briefings, use the generateBriefing tool — it fetches and summarizes stories in parallel. For translations, use translateText. Be concise but thorough — cite article titles and sources.`;
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -48,15 +36,13 @@ export async function POST(req: Request) {
     model: anthropic('claude-opus-4-8'),
     system: SYSTEM_PROMPT,
     messages,
-    maxSteps: 5,
+    maxSteps: 8,
     tools: {
       fetchLatestNews: tool({
-        description: 'Fetch the latest news articles from EU/French news sources. Use this to get current headlines and stories.',
+        description: 'Fetch the latest news articles from any of the 13 sources.',
         parameters: z.object({
-          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist', 'all'])
-            .optional()
-            .default('all')
-            .describe('Which source to fetch from. Use "all" for a comprehensive overview.'),
+          source: z.enum([...SOURCE_ENUM, 'all']).optional().default('all')
+            .describe('Which source to fetch from. Use "all" for a broad overview.'),
           limit: z.number().min(1).max(20).optional().default(8)
             .describe('Number of articles per source (1-20)'),
         }),
@@ -82,9 +68,7 @@ export async function POST(req: Request) {
         description: 'Search for news articles matching specific keywords or topics across all sources.',
         parameters: z.object({
           query: z.string().describe('Search query — keywords, topic, person, or event to find'),
-          source: z.enum(['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist', 'all'])
-            .optional()
-            .default('all')
+          source: z.enum([...SOURCE_ENUM, 'all']).optional().default('all')
             .describe('Limit search to a specific source or search all'),
         }),
         execute: async ({ query, source }) => {
@@ -108,22 +92,19 @@ export async function POST(req: Request) {
       }),
 
       profileSources: tool({
-        description: 'Get detailed profiles of all available news sources — their coverage areas, editorial focus, and topics.',
+        description: 'Get detailed profiles of all 13 available news sources.',
         parameters: z.object({}),
-        execute: async () => {
-          return {
-            sources: getAllSourceProfiles(),
-            summary: `${Object.keys(NEWS_SOURCES).length} free EU/French news sources available with live RSS feeds.`,
-          };
-        },
+        execute: async () => ({
+          sources: getAllSourceProfiles(),
+          total: Object.keys(NEWS_SOURCES).length,
+        }),
       }),
 
       analyzeCoverage: tool({
-        description: 'Fetch news from ALL sources simultaneously and analyze how different outlets cover topics — ideal for cross-source comparison and trend detection.',
+        description: 'Fetch from ALL sources and analyze cross-outlet coverage — best for trend detection and editorial comparison.',
         parameters: z.object({
           topic: z.string().optional().describe('Optional topic to focus the analysis on'),
-          limit: z.number().min(1).max(15).optional().default(5)
-            .describe('Articles per source'),
+          limit: z.number().min(1).max(15).optional().default(5).describe('Articles per source'),
         }),
         execute: async ({ topic, limit }) => {
           const allItems = await fetchNewsFeed(undefined, limit);
@@ -142,11 +123,6 @@ export async function POST(req: Request) {
             }
           }
 
-          const trendingTopics = Object.entries(topicFrequency)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 10)
-            .map(([topic, count]) => ({ topic, count }));
-
           return {
             totalArticles: filtered.length,
             bySource: Object.entries(bySource).map(([source, articles]) => ({
@@ -154,35 +130,94 @@ export async function POST(req: Request) {
               count: articles.length,
               headlines: articles.slice(0, 3).map(a => a.title),
             })),
-            trendingTopics,
+            trendingTopics: Object.entries(topicFrequency)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 10)
+              .map(([topic, count]) => ({ topic, count })),
             analyzedAt: new Date().toISOString(),
           };
         },
       }),
 
       translateText: tool({
-        description: 'Translate any text into a target language. Use this when the user asks to translate an article, headline, or any content.',
+        description: 'Translate any text into a target language.',
         parameters: z.object({
           text: z.string().describe('The text to translate'),
-          targetLanguage: z.string().describe('Target language name or code, e.g. "French", "German", "Arabic", "Spanish", "English"'),
-          sourceLanguage: z.string().optional().describe('Source language if known — leave blank for auto-detect'),
+          targetLanguage: z.string().describe('Target language, e.g. "French", "German", "Arabic", "Hindi"'),
+          sourceLanguage: z.string().optional().describe('Source language — omit for auto-detect'),
         }),
         execute: async ({ text, targetLanguage, sourceLanguage }) => {
-          const from = sourceLanguage ? `from ${sourceLanguage} ` : '';
           const { text: translated } = await generateText({
             model: anthropic('claude-opus-4-8'),
-            messages: [
-              {
-                role: 'user',
-                content: `Translate the following text ${from}into ${targetLanguage}. Return only the translated text, no explanations or notes.\n\n${text}`,
-              },
-            ],
+            messages: [{ role: 'user', content: buildTranslatePrompt(text, targetLanguage, sourceLanguage) }],
           });
           return {
             original: text,
             translated,
             targetLanguage,
-            sourceLanguage: sourceLanguage || 'auto-detected',
+            sourceLanguage: sourceLanguage ?? 'auto-detected',
+          };
+        },
+      }),
+
+      generateBriefing: tool({
+        description: 'Generate a structured news digest: fetches top stories, writes a punchy 60-word AI summary for each, and returns the full briefing. Use when asked for a briefing, digest, roundup, or morning summary. Optionally produce summaries in a non-English language.',
+        parameters: z.object({
+          topic: z.string().optional()
+            .describe('Focus topic, e.g. "EU politics", "India economy", "climate"'),
+          language: z.string().optional().default('English')
+            .describe('Language for the summaries, e.g. "French", "Arabic", "Hindi"'),
+          sources: z.array(z.enum(SOURCE_ENUM)).optional()
+            .describe('Limit to specific sources. Omit for all sources.'),
+          count: z.number().min(3).max(8).optional().default(5)
+            .describe('Number of stories to include (3-8)'),
+        }),
+        execute: async ({ topic, language, sources, count }) => {
+          let articles = await fetchNewsFeed(undefined, 12);
+
+          if (sources && sources.length > 0) {
+            articles = articles.filter(a => sources.includes(a.source as typeof SOURCE_ENUM[number]));
+          }
+          if (topic) {
+            articles = searchNews(articles, topic);
+          }
+          articles = articles.slice(0, count ?? 5);
+
+          const targetLang = language && language.toLowerCase() !== 'english' ? language : undefined;
+
+          const results = await Promise.allSettled(
+            articles.map(async article => {
+              const { text } = await generateText({
+                model: anthropic('claude-haiku-4-5'),
+                messages: [{
+                  role: 'user',
+                  content: buildSummarizePrompt(article.title, article.contentSnippet, article.sourceName, targetLang),
+                }],
+              });
+              return {
+                title: article.title,
+                source: article.sourceName,
+                sourceFlag: article.sourceFlag,
+                pubDate: article.pubDate,
+                link: article.link,
+                summary: text.trim(),
+              };
+            })
+          );
+
+          const stories = results
+            .filter((r): r is PromiseFulfilledResult<{
+              title: string; source: string; sourceFlag: string;
+              pubDate: string; link: string; summary: string;
+            }> => r.status === 'fulfilled')
+            .map(r => r.value);
+
+          return {
+            generatedAt: new Date().toISOString(),
+            briefingTopic: topic ?? 'Top Stories',
+            language: language ?? 'English',
+            storyCount: stories.length,
+            stories,
           };
         },
       }),

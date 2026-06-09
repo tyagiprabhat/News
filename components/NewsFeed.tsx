@@ -31,7 +31,17 @@ const SOURCE_COLORS: Record<string, string> = {
   economist: 'text-red-300 bg-red-950/40 border-red-700/40',
 };
 
-const TRANSLATE_LANGS = ['French', 'German', 'Spanish', 'Arabic', 'Portuguese', 'Italian', 'English'];
+const SUMMARY_LANGS = [
+  { code: 'EN', label: 'English', flag: '🇺🇸' },
+  { code: 'FR', label: 'French',  flag: '🇫🇷' },
+  { code: 'DE', label: 'German',  flag: '🇩🇪' },
+  { code: 'ES', label: 'Spanish', flag: '🇪🇸' },
+  { code: 'AR', label: 'Arabic',  flag: '🇸🇦' },
+  { code: 'HI', label: 'Hindi',   flag: '🇮🇳' },
+  { code: 'IT', label: 'Italian', flag: '🇮🇹' },
+];
+
+const TRANSLATE_LANGS = ['French', 'German', 'Spanish', 'Arabic', 'Hindi', 'Portuguese', 'Italian', 'English'];
 
 function truncate60(text?: string): string {
   if (!text) return '';
@@ -51,7 +61,9 @@ function timeAgo(dateStr: string): string {
 
 function ArticleCard({ item }: { item: NewsItem }) {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [summaryLang, setSummaryLang] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  const [showLangPicker, setShowLangPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translated, setTranslated] = useState<string | null>(null);
@@ -59,16 +71,19 @@ function ArticleCard({ item }: { item: NewsItem }) {
 
   const colorClass = SOURCE_COLORS[item.source] ?? 'text-gray-400 bg-gray-800/40 border-gray-700/40';
 
-  const summarize = async () => {
+  const summarize = async (targetLanguage: string) => {
+    setShowLangPicker(false);
     setSummarizing(true);
     setAiSummary('');
+    setSummaryLang(targetLanguage);
     setTranslated(null);
     setTranslateLang(null);
     try {
+      const lang = targetLanguage === 'English' ? undefined : targetLanguage;
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: item.title, snippet: item.contentSnippet, source: item.sourceName }),
+        body: JSON.stringify({ title: item.title, snippet: item.contentSnippet, source: item.sourceName, targetLanguage: lang }),
       });
       if (!res.body) throw new Error();
       const reader = res.body.getReader();
@@ -80,6 +95,7 @@ function ArticleCard({ item }: { item: NewsItem }) {
       }
     } catch {
       setAiSummary(null);
+      setSummaryLang(null);
     } finally {
       setSummarizing(false);
     }
@@ -115,7 +131,17 @@ function ArticleCard({ item }: { item: NewsItem }) {
     }
   };
 
+  const reset = () => {
+    setAiSummary(null);
+    setSummaryLang(null);
+    setTranslated(null);
+    setTranslateLang(null);
+    setShowLangPicker(false);
+    setShowTranslate(false);
+  };
+
   const bodyText = translated ?? aiSummary ?? truncate60(item.contentSnippet);
+  const activeLang = translateLang ?? summaryLang;
 
   return (
     <div className="mx-3 my-2 rounded-xl bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors overflow-hidden">
@@ -124,7 +150,12 @@ function ArticleCard({ item }: { item: NewsItem }) {
         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${colorClass}`}>
           {item.sourceFlag} {item.sourceName}
         </span>
-        <span className="text-xs text-gray-600">{timeAgo(item.pubDate)}</span>
+        <div className="flex items-center gap-1.5">
+          {activeLang && activeLang !== 'English' && (
+            <span className="text-xs text-blue-400">🌐 {activeLang}</span>
+          )}
+          <span className="text-xs text-gray-600">{timeAgo(item.pubDate)}</span>
+        </div>
       </div>
 
       {/* Headline */}
@@ -132,18 +163,18 @@ function ArticleCard({ item }: { item: NewsItem }) {
         {item.title}
       </h3>
 
-      {/* Body — 60-word summary */}
+      {/* Body */}
       <div className="px-4 pt-2 min-h-[3rem]">
-        {summarizing && !aiSummary ? (
+        {(summarizing && !aiSummary) ? (
           <span className="flex items-center gap-1.5 text-xs text-purple-400">
             <span className="flex gap-0.5">
               {[0, 1, 2].map(i => (
                 <span key={i} className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.12}s` }} />
               ))}
             </span>
-            Generating summary…
+            Writing {summaryLang !== 'English' ? `in ${summaryLang}` : 'summary'}…
           </span>
-        ) : translating && !translated ? (
+        ) : (translating && !translated) ? (
           <span className="flex items-center gap-1.5 text-xs text-blue-400">
             <span className="flex gap-0.5">
               {[0, 1, 2].map(i => (
@@ -159,41 +190,48 @@ function ArticleCard({ item }: { item: NewsItem }) {
             {bodyText}
           </p>
         ) : null}
-
-        {translateLang && translated && (
-          <span className="inline-block mt-1 text-xs text-blue-500">🌐 {translateLang}</span>
-        )}
       </div>
 
-      {/* Actions row */}
-      <div className="flex items-center justify-between px-4 py-2.5 mt-2 border-t border-gray-800">
-        <div className="flex items-center gap-3 relative">
-          {!aiSummary && !summarizing && (
+      {/* One-shot language picker (shown when ✨ is clicked) */}
+      {showLangPicker && !aiSummary && !summarizing && (
+        <div className="px-4 pt-2 pb-1 flex flex-wrap gap-1">
+          {SUMMARY_LANGS.map(({ code, label, flag }) => (
             <button
-              onClick={summarize}
-              className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+              key={code}
+              onClick={() => summarize(label)}
+              className="text-xs px-2 py-0.5 rounded-full bg-gray-800 hover:bg-purple-800 border border-gray-700 hover:border-purple-600 text-gray-300 hover:text-white transition-all"
             >
-              ✨ AI summary
+              {flag} {code}
             </button>
-          )}
-          {(aiSummary || translated) && !summarizing && (
+          ))}
+        </div>
+      )}
+
+      {/* Actions row */}
+      <div className="flex items-center justify-between px-4 py-2.5 mt-1 border-t border-gray-800">
+        <div className="flex items-center gap-3 relative">
+          {!aiSummary && !summarizing ? (
             <button
-              onClick={() => { setAiSummary(null); setTranslated(null); setTranslateLang(null); }}
-              className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+              onClick={() => setShowLangPicker(v => !v)}
+              className={`text-xs transition-colors ${showLangPicker ? 'text-purple-300' : 'text-purple-400 hover:text-purple-300'}`}
             >
+              ✨ Summary
+            </button>
+          ) : !summarizing && (
+            <button onClick={reset} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
               × Reset
             </button>
           )}
 
           <button
-            onClick={() => setShowTranslate(v => !v)}
-            className="text-xs text-gray-500 hover:text-blue-400 transition-colors"
+            onClick={() => { setShowTranslate(v => !v); setShowLangPicker(false); }}
+            className={`text-xs transition-colors ${showTranslate ? 'text-blue-300' : 'text-gray-500 hover:text-blue-400'}`}
           >
             🌐
           </button>
 
           {showTranslate && (
-            <div className="absolute left-0 bottom-7 z-20 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl p-2 flex flex-wrap gap-1 w-48">
+            <div className="absolute left-0 bottom-7 z-20 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl p-2 flex flex-wrap gap-1 w-52">
               {TRANSLATE_LANGS.map(lang => (
                 <button
                   key={lang}
@@ -229,7 +267,7 @@ export default function NewsFeed() {
   const fetchNews = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = filter === 'all' ? '?limit=8' : `?source=${filter}&limit=8`;
+      const qs = filter === 'all' ? '?limit=10' : `?source=${filter}&limit=10`;
       const res = await fetch(`/api/news${qs}`);
       const data = await res.json();
       setItems(data.items || []);
