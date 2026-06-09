@@ -15,7 +15,7 @@ export default function Home() {
       </div>
 
       {/* Left panel — news feed */}
-      <aside className="w-80 flex-shrink-0 border-r border-gray-800 mt-10 flex flex-col">
+      <aside className="w-[420px] flex-shrink-0 border-r border-gray-800 mt-10 flex flex-col">
         <NewsFeed />
       </aside>
 
