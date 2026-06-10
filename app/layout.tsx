@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import { ClerkProvider } from '@clerk/nextjs';
+import { dark } from '@clerk/themes';
 import './globals.css';
 import SwRegister from '@/components/SwRegister';
 
@@ -27,12 +29,29 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
+  const body = (
     <html lang="en">
       <body className="antialiased">
         {children}
         <SwRegister />
       </body>
     </html>
+  );
+
+  // Only mount Clerk once its publishable key is configured, so the app
+  // still builds and runs before auth env vars are added in Vercel.
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return body;
+  }
+
+  return (
+    <ClerkProvider
+      appearance={{
+        baseTheme: dark,
+        variables: { colorPrimary: '#2563eb', colorBackground: '#030712' },
+      }}
+    >
+      {body}
+    </ClerkProvider>
   );
 }

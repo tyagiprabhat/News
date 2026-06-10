@@ -2,6 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
+import { UserButton } from '@clerk/nextjs';
+
+const CLERK_ENABLED = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 const NewsFeed = dynamic(() => import('@/components/NewsFeed'), { ssr: false });
 const ChatInterface = dynamic(() => import('@/components/ChatInterface'), { ssr: false });
@@ -61,16 +64,14 @@ export default function AppShell() {
         <span className="hidden sm:inline text-xs text-gray-500 truncate">
           The world&apos;s news in 60 words — 21 sources, 6 regions
         </span>
-        <button
-          onClick={async () => {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            window.location.href = '/login';
-          }}
-          className="ml-auto text-xs text-gray-600 hover:text-gray-300 transition-colors flex-shrink-0"
-          title="Sign out"
-        >
-          Sign out
-        </button>
+        {CLERK_ENABLED && (
+          <div className="ml-auto flex-shrink-0 flex items-center">
+            <UserButton
+              afterSignOutUrl="/sign-in"
+              appearance={{ elements: { avatarBox: 'w-7 h-7' } }}
+            />
+          </div>
+        )}
 
         {/* Install button — desktop */}
         {installPrompt && !installed && (
