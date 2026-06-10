@@ -72,6 +72,22 @@ export const NEWS_SOURCES: Record<string, SourceConfig> = {
   },
 
   // ── Americas ─────────────────────────────────────────────────
+  nyt: {
+    name: 'The New York Times',
+    url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml',
+    flag: '🗽',
+    region: 'americas',
+    weight: 8,
+    topics: ['US', 'World', 'Politics', 'Business', 'Investigations'],
+  },
+  wapo: {
+    name: 'The Washington Post',
+    url: 'https://feeds.washingtonpost.com/rss/world',
+    flag: '📰',
+    region: 'americas',
+    weight: 7,
+    topics: ['US', 'World', 'Politics', 'National Security', 'Investigations'],
+  },
   npr: {
     name: 'NPR',
     url: 'https://feeds.npr.org/1001/rss.xml',
@@ -79,6 +95,22 @@ export const NEWS_SOURCES: Record<string, SourceConfig> = {
     region: 'americas',
     weight: 6,
     topics: ['US', 'World', 'Politics', 'Culture', 'Science'],
+  },
+  pbs: {
+    name: 'PBS NewsHour',
+    url: 'https://www.pbs.org/newshour/feeds/rss/headlines',
+    flag: '📺',
+    region: 'americas',
+    weight: 4,
+    topics: ['US', 'World', 'Politics', 'Analysis', 'Science'],
+  },
+  propublica: {
+    name: 'ProPublica',
+    url: 'https://www.propublica.org/feeds/propublica/main',
+    flag: '🔍',
+    region: 'americas',
+    weight: 4,
+    topics: ['Investigations', 'Accountability', 'Politics', 'Justice', 'Health'],
   },
   mercopress: {
     name: 'MercoPress',
@@ -381,7 +413,11 @@ const SOURCE_TYPES: Record<string, string> = {
   bbc: 'Public Broadcaster',
   guardian: 'National Newspaper',
   economist: 'Magazine/Analysis',
+  nyt: 'National Newspaper',
+  wapo: 'National Newspaper',
   npr: 'Public Radio',
+  pbs: 'Public Broadcaster',
+  propublica: 'Investigative Nonprofit',
   mercopress: 'Regional News Agency',
   france24: 'International Broadcaster',
   euronews: 'Pan-European Broadcaster',

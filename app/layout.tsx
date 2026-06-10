@@ -7,7 +7,7 @@ import SwRegister from '@/components/SwRegister';
 
 export const metadata: Metadata = {
   title: 'Brève',
-  description: 'The world\'s news in 60 words — AI summaries, briefings & translation from 21 global sources',
+  description: 'The world\'s news in 60 words — AI summaries, briefings & translation from 25 global sources',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

@@ -62,7 +62,7 @@ export default function AppShell() {
         <span className="text-sm font-semibold text-gray-200">Brève</span>
         <span className="hidden sm:inline text-gray-700 text-xs">|</span>
         <span className="hidden sm:inline text-xs text-gray-500 truncate">
-          The world&apos;s news in 60 words — 21 sources, 6 regions
+          The world&apos;s news in 60 words — 25 sources, 6 regions
         </span>
         {CLERK_ENABLED && (
           <div className="ml-auto flex-shrink-0 flex items-center">
