@@ -3,13 +3,13 @@ import './globals.css';
 import SwRegister from '@/components/SwRegister';
 
 export const metadata: Metadata = {
-  title: 'News AI',
-  description: 'Live global news with AI summaries, briefings & translation in any language',
+  title: 'Briefly',
+  description: 'The world\'s news in 60 words — AI summaries, briefings & translation from 20 global sources',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'News AI',
+    title: 'Briefly',
   },
   icons: {
     icon: '/icon-192.svg',

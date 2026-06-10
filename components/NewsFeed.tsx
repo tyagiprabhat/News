@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { NEWS_SOURCES, CATEGORIES } from '@/lib/news';
+import { CATEGORIES, REGIONS } from '@/lib/news';
 
 interface NewsItem {
   title: string;
@@ -10,41 +10,56 @@ interface NewsItem {
   contentSnippet?: string;
   imageUrl?: string;
   category: string;
+  region: string;
   source: string;
   sourceName: string;
   sourceFlag: string;
 }
 
 const SOURCE_COLORS: Record<string, string> = {
-  ap:        'text-blue-400 bg-blue-950/50 border-blue-800/50',
-  guardian:  'text-orange-400 bg-orange-950/50 border-orange-800/50',
-  bbc:       'text-red-400 bg-red-950/50 border-red-800/50',
-  npr:       'text-indigo-400 bg-indigo-950/50 border-indigo-800/50',
-  aljazeera: 'text-emerald-400 bg-emerald-950/50 border-emerald-800/50',
-  france24:  'text-blue-300 bg-blue-950/40 border-blue-700/40',
-  rfi:       'text-purple-400 bg-purple-950/50 border-purple-800/50',
-  euronews:  'text-cyan-400 bg-cyan-950/50 border-cyan-800/50',
-  politico:  'text-sky-400 bg-sky-950/50 border-sky-800/50',
-  dw:        'text-teal-400 bg-teal-950/50 border-teal-800/50',
-  hindu:     'text-rose-400 bg-rose-950/50 border-rose-800/50',
-  toi:       'text-amber-400 bg-amber-950/50 border-amber-800/50',
-  economist: 'text-red-300 bg-red-950/40 border-red-700/40',
+  ap:            'text-blue-400 bg-blue-950/50 border-blue-800/50',
+  guardian:      'text-orange-400 bg-orange-950/50 border-orange-800/50',
+  bbc:           'text-red-400 bg-red-950/50 border-red-800/50',
+  npr:           'text-indigo-400 bg-indigo-950/50 border-indigo-800/50',
+  aljazeera:     'text-emerald-400 bg-emerald-950/50 border-emerald-800/50',
+  france24:      'text-blue-300 bg-blue-950/40 border-blue-700/40',
+  rfi:           'text-purple-400 bg-purple-950/50 border-purple-800/50',
+  euronews:      'text-cyan-400 bg-cyan-950/50 border-cyan-800/50',
+  politico:      'text-sky-400 bg-sky-950/50 border-sky-800/50',
+  dw:            'text-teal-400 bg-teal-950/50 border-teal-800/50',
+  hindu:         'text-rose-400 bg-rose-950/50 border-rose-800/50',
+  indianexpress: 'text-pink-400 bg-pink-950/50 border-pink-800/50',
+  toi:           'text-amber-400 bg-amber-950/50 border-amber-800/50',
+  economist:     'text-red-300 bg-red-950/40 border-red-700/40',
+  mercopress:    'text-lime-400 bg-lime-950/50 border-lime-800/50',
+  allafrica:     'text-yellow-400 bg-yellow-950/50 border-yellow-800/50',
+  cna:           'text-fuchsia-400 bg-fuchsia-950/50 border-fuchsia-800/50',
+  scmp:          'text-amber-300 bg-amber-950/40 border-amber-700/40',
+  japantimes:    'text-rose-300 bg-rose-950/40 border-rose-700/40',
+  abcau:         'text-green-400 bg-green-950/50 border-green-800/50',
 };
 
 const SOURCE_GRADIENTS: Record<string, string> = {
-  ap:        'from-blue-900 to-gray-950',
-  guardian:  'from-orange-900 to-gray-950',
-  bbc:       'from-red-900 to-gray-950',
-  npr:       'from-indigo-900 to-gray-950',
-  aljazeera: 'from-emerald-900 to-gray-950',
-  france24:  'from-blue-800 to-gray-950',
-  rfi:       'from-purple-900 to-gray-950',
-  euronews:  'from-cyan-900 to-gray-950',
-  politico:  'from-sky-900 to-gray-950',
-  dw:        'from-teal-900 to-gray-950',
-  hindu:     'from-rose-900 to-gray-950',
-  toi:       'from-amber-900 to-gray-950',
-  economist: 'from-red-800 to-gray-950',
+  ap:            'from-blue-900 to-gray-950',
+  guardian:      'from-orange-900 to-gray-950',
+  bbc:           'from-red-900 to-gray-950',
+  npr:           'from-indigo-900 to-gray-950',
+  aljazeera:     'from-emerald-900 to-gray-950',
+  france24:      'from-blue-800 to-gray-950',
+  rfi:           'from-purple-900 to-gray-950',
+  euronews:      'from-cyan-900 to-gray-950',
+  politico:      'from-sky-900 to-gray-950',
+  dw:            'from-teal-900 to-gray-950',
+  hindu:         'from-rose-900 to-gray-950',
+  indianexpress: 'from-pink-900 to-gray-950',
+  toi:           'from-amber-900 to-gray-950',
+  economist:     'from-red-800 to-gray-950',
+  mercopress:    'from-lime-900 to-gray-950',
+  allafrica:     'from-yellow-900 to-gray-950',
+  cna:           'from-fuchsia-900 to-gray-950',
+  scmp:          'from-amber-800 to-gray-950',
+  japantimes:    'from-rose-800 to-gray-950',
+  abcau:         'from-green-900 to-gray-950',
 };
 
 const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
@@ -309,14 +324,13 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
 export default function NewsFeed() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [region, setRegion] = useState<string>('all');
   const [category, setCategory] = useState<string>('all');
 
   const fetchNews = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = sourceFilter === 'all' ? '?limit=10' : `?source=${sourceFilter}&limit=10`;
-      const res = await fetch(`/api/news${qs}`);
+      const res = await fetch('/api/news?limit=10');
       const data = await res.json();
       setItems(data.items || []);
     } catch {
@@ -324,13 +338,16 @@ export default function NewsFeed() {
     } finally {
       setLoading(false);
     }
-  }, [sourceFilter]);
+  }, []);
 
   useEffect(() => { fetchNews(); }, [fetchNews]);
 
   const visible = useMemo(
-    () => category === 'all' ? items : items.filter(i => i.category === category),
-    [items, category]
+    () => items.filter(i =>
+      (category === 'all' || i.category === category) &&
+      (region === 'all' || i.region === region)
+    ),
+    [items, category, region]
   );
 
   const spinner = (
@@ -360,25 +377,17 @@ export default function NewsFeed() {
         ))}
       </div>
 
-      {/* Source filter — secondary row */}
+      {/* Region filter — secondary row */}
       <div className="flex items-center gap-1 px-3 pb-2 border-b border-gray-800 overflow-x-auto scrollbar-thin flex-nowrap flex-shrink-0">
-        <button
-          onClick={() => setSourceFilter('all')}
-          className={`text-[11px] px-2 py-0.5 rounded-full transition-colors whitespace-nowrap flex-shrink-0 ${
-            sourceFilter === 'all' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-500 hover:bg-gray-800 border border-gray-800'
-          }`}
-        >
-          All sources
-        </button>
-        {Object.entries(NEWS_SOURCES).map(([key, src]) => (
+        {REGIONS.map(({ key, label, emoji }) => (
           <button
             key={key}
-            onClick={() => setSourceFilter(key)}
+            onClick={() => setRegion(key)}
             className={`text-[11px] px-2 py-0.5 rounded-full transition-colors whitespace-nowrap flex-shrink-0 ${
-              sourceFilter === key ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-500 hover:bg-gray-800 border border-gray-800'
+              region === key ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-500 hover:bg-gray-800 border border-gray-800'
             }`}
           >
-            {src.flag} {src.name}
+            {emoji} {label}
           </button>
         ))}
         <button onClick={fetchNews} className="ml-auto text-[11px] text-gray-600 hover:text-blue-400 transition-colors flex-shrink-0 pl-2" title="Refresh">

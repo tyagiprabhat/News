@@ -9,89 +9,204 @@ export interface NewsItem {
   categories?: string[];
   imageUrl?: string;
   category: string;
+  region: string;
   source: string;
   sourceName: string;
   sourceFlag: string;
 }
 
-export const NEWS_SOURCES: Record<string, { name: string; url: string; flag: string; topics: string[] }> = {
+export interface SourceConfig {
+  name: string;
+  url: string;
+  flag: string;
+  region: string;
+  // Relative share of the merged feed, based on global reach/popularity.
+  // The feed composition is proportional to these weights.
+  weight: number;
+  topics: string[];
+}
+
+export const REGIONS = [
+  { key: 'all',      label: 'Worldwide',       emoji: '🌐' },
+  { key: 'global',   label: 'Global Wires',    emoji: '📰' },
+  { key: 'americas', label: 'Americas',        emoji: '🌎' },
+  { key: 'europe',   label: 'Europe',          emoji: '🇪🇺' },
+  { key: 'mea',      label: 'Middle East & Africa', emoji: '🌍' },
+  { key: 'asia',     label: 'Asia-Pacific',    emoji: '🌏' },
+  { key: 'india',    label: 'India',           emoji: '🇮🇳' },
+] as const;
+
+export const NEWS_SOURCES: Record<string, SourceConfig> = {
+  // ── Global wires & broadcasters ──────────────────────────────
   ap: {
     name: 'AP News',
     url: 'https://feeds.apnews.com/rss/apf-topnews',
     flag: '📰',
+    region: 'global',
+    weight: 10,
     topics: ['Breaking News', 'World', 'US', 'Politics', 'Business'],
-  },
-  guardian: {
-    name: 'The Guardian',
-    url: 'https://www.theguardian.com/world/rss',
-    flag: '🗞️',
-    topics: ['World', 'UK', 'Politics', 'Environment', 'Social Affairs'],
   },
   bbc: {
     name: 'BBC News',
     url: 'http://feeds.bbci.co.uk/news/rss.xml',
     flag: '🇬🇧',
+    region: 'global',
+    weight: 9,
     topics: ['World', 'UK', 'Politics', 'Science', 'Technology'],
   },
-  npr: {
-    name: 'NPR',
-    url: 'https://feeds.npr.org/1001/rss.xml',
-    flag: '🎙️',
-    topics: ['US', 'World', 'Politics', 'Culture', 'Science'],
-  },
-  aljazeera: {
-    name: 'Al Jazeera',
-    url: 'https://www.aljazeera.com/xml/rss/all.xml',
-    flag: '🌍',
-    topics: ['Middle East', 'World', 'Politics', 'Conflicts', 'Human Rights'],
-  },
-  france24: {
-    name: 'France 24',
-    url: 'https://www.france24.com/en/rss',
-    flag: '🇫🇷',
-    topics: ['France', 'EU', 'International', 'Politics', 'Economy'],
-  },
-  rfi: {
-    name: 'RFI',
-    url: 'https://www.rfi.fr/en/rss',
-    flag: '📻',
-    topics: ['France', 'Francophone', 'Africa', 'International'],
-  },
-  euronews: {
-    name: 'Euronews',
-    url: 'https://feeds.feedburner.com/euronews/en/home/',
-    flag: '🇪🇺',
-    topics: ['EU', 'Europe', 'Politics', 'Economy', 'Tech'],
-  },
-  politico: {
-    name: 'Politico Europe',
-    url: 'https://www.politico.eu/feed/',
-    flag: '🇪🇺',
-    topics: ['EU Policy', 'Brussels', 'European Parliament', 'Politics'],
-  },
-  dw: {
-    name: 'Deutsche Welle',
-    url: 'https://rss.dw.com/rdf/rss-en-all',
-    flag: '🇩🇪',
-    topics: ['Germany', 'EU', 'International', 'Economy', 'Science'],
-  },
-  hindu: {
-    name: 'The Hindu',
-    url: 'https://www.thehindu.com/feeder/default.rss',
-    flag: '🇮🇳',
-    topics: ['India', 'Politics', 'Economy', 'Science', 'International'],
-  },
-  toi: {
-    name: 'Times of India',
-    url: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
-    flag: '🇮🇳',
-    topics: ['India', 'Business', 'Sports', 'Entertainment', 'World'],
+  guardian: {
+    name: 'The Guardian',
+    url: 'https://www.theguardian.com/world/rss',
+    flag: '🗞️',
+    region: 'global',
+    weight: 7,
+    topics: ['World', 'UK', 'Politics', 'Environment', 'Social Affairs'],
   },
   economist: {
     name: 'The Economist',
     url: 'https://www.economist.com/rss/the_world_this_week_rss.xml',
     flag: '📊',
+    region: 'global',
+    weight: 4,
     topics: ['Economics', 'Finance', 'Politics', 'Business', 'Global Affairs'],
+  },
+
+  // ── Americas ─────────────────────────────────────────────────
+  npr: {
+    name: 'NPR',
+    url: 'https://feeds.npr.org/1001/rss.xml',
+    flag: '🎙️',
+    region: 'americas',
+    weight: 6,
+    topics: ['US', 'World', 'Politics', 'Culture', 'Science'],
+  },
+  mercopress: {
+    name: 'MercoPress',
+    url: 'https://en.mercopress.com/rss/',
+    flag: '🌎',
+    region: 'americas',
+    weight: 3,
+    topics: ['Latin America', 'South Atlantic', 'Trade', 'Politics'],
+  },
+
+  // ── Europe ───────────────────────────────────────────────────
+  france24: {
+    name: 'France 24',
+    url: 'https://www.france24.com/en/rss',
+    flag: '🇫🇷',
+    region: 'europe',
+    weight: 5,
+    topics: ['France', 'EU', 'International', 'Politics', 'Economy'],
+  },
+  euronews: {
+    name: 'Euronews',
+    url: 'https://feeds.feedburner.com/euronews/en/home/',
+    flag: '🇪🇺',
+    region: 'europe',
+    weight: 5,
+    topics: ['EU', 'Europe', 'Politics', 'Economy', 'Tech'],
+  },
+  dw: {
+    name: 'Deutsche Welle',
+    url: 'https://rss.dw.com/rdf/rss-en-all',
+    flag: '🇩🇪',
+    region: 'europe',
+    weight: 5,
+    topics: ['Germany', 'EU', 'International', 'Economy', 'Science'],
+  },
+  politico: {
+    name: 'Politico Europe',
+    url: 'https://www.politico.eu/feed/',
+    flag: '🏛️',
+    region: 'europe',
+    weight: 4,
+    topics: ['EU Policy', 'Brussels', 'European Parliament', 'Politics'],
+  },
+  rfi: {
+    name: 'RFI',
+    url: 'https://www.rfi.fr/en/rss',
+    flag: '📻',
+    region: 'europe',
+    weight: 3,
+    topics: ['France', 'Francophone', 'Africa', 'International'],
+  },
+
+  // ── Middle East & Africa ─────────────────────────────────────
+  aljazeera: {
+    name: 'Al Jazeera',
+    url: 'https://www.aljazeera.com/xml/rss/all.xml',
+    flag: '🌍',
+    region: 'mea',
+    weight: 7,
+    topics: ['Middle East', 'World', 'Politics', 'Conflicts', 'Human Rights'],
+  },
+  allafrica: {
+    name: 'AllAfrica',
+    url: 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf',
+    flag: '🌍',
+    region: 'mea',
+    weight: 4,
+    topics: ['Africa', 'Politics', 'Development', 'Business'],
+  },
+
+  // ── Asia-Pacific ─────────────────────────────────────────────
+  cna: {
+    name: 'CNA',
+    url: 'https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml',
+    flag: '🇸🇬',
+    region: 'asia',
+    weight: 6,
+    topics: ['Asia', 'Singapore', 'Business', 'World', 'Politics'],
+  },
+  scmp: {
+    name: 'South China Morning Post',
+    url: 'https://www.scmp.com/rss/91/feed',
+    flag: '🇭🇰',
+    region: 'asia',
+    weight: 5,
+    topics: ['China', 'Hong Kong', 'Asia', 'Business', 'Tech'],
+  },
+  japantimes: {
+    name: 'The Japan Times',
+    url: 'https://www.japantimes.co.jp/feed/',
+    flag: '🇯🇵',
+    region: 'asia',
+    weight: 4,
+    topics: ['Japan', 'Asia', 'Business', 'Culture', 'World'],
+  },
+  abcau: {
+    name: 'ABC News Australia',
+    url: 'https://www.abc.net.au/news/feed/51120/rss.xml',
+    flag: '🇦🇺',
+    region: 'asia',
+    weight: 4,
+    topics: ['Australia', 'Pacific', 'World', 'Politics', 'Science'],
+  },
+
+  // ── India ────────────────────────────────────────────────────
+  hindu: {
+    name: 'The Hindu',
+    url: 'https://www.thehindu.com/feeder/default.rss',
+    flag: '🇮🇳',
+    region: 'india',
+    weight: 4,
+    topics: ['India', 'Politics', 'Economy', 'Science', 'International'],
+  },
+  indianexpress: {
+    name: 'Indian Express',
+    url: 'https://indianexpress.com/feed/',
+    flag: '🇮🇳',
+    region: 'india',
+    weight: 4,
+    topics: ['India', 'Politics', 'Investigations', 'Explainers', 'Opinion'],
+  },
+  toi: {
+    name: 'Times of India',
+    url: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+    flag: '🇮🇳',
+    region: 'india',
+    weight: 3,
+    topics: ['India', 'Business', 'Sports', 'Entertainment', 'World'],
   },
 };
 
@@ -106,7 +221,7 @@ type RawItem = Parser.Item & {
 };
 
 const parser: Parser<Record<string, unknown>, RawItem> = new Parser({
-  headers: { 'User-Agent': 'NewsAI/1.0 (RSS Reader)' },
+  headers: { 'User-Agent': 'Briefly/1.0 (RSS Reader)' },
   timeout: 8000,
   customFields: {
     item: [
@@ -164,18 +279,19 @@ function extractImage(item: RawItem): string | undefined {
   return match?.[1];
 }
 
-// 5-minute in-memory cache — prevents hammering 13 RSS feeds on every request
+// 5-minute in-memory cache — prevents hammering the RSS feeds on every request
 const RSS_CACHE = new Map<string, { items: NewsItem[]; expiresAt: number }>();
 const CACHE_TTL = 5 * 60_000;
+const MAX_PER_SOURCE = 15;
 
-async function fetchSource(key: string, source: typeof NEWS_SOURCES[string], limit: number): Promise<NewsItem[]> {
+async function fetchSource(key: string, source: SourceConfig, limit: number): Promise<NewsItem[]> {
   const cached = RSS_CACHE.get(key);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.items.slice(0, limit);
   }
 
   const feed = await parser.parseURL(source.url);
-  const items = (feed.items || []).slice(0, Math.max(limit, 15)).map((item): NewsItem => ({
+  const items = (feed.items || []).slice(0, MAX_PER_SOURCE).map((item): NewsItem => ({
     title: item.title || 'Untitled',
     link: item.link || '',
     pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
@@ -184,6 +300,7 @@ async function fetchSource(key: string, source: typeof NEWS_SOURCES[string], lim
     categories: item.categories,
     imageUrl: extractImage(item),
     category: categorize(item.title || '', item.contentSnippet, item.categories),
+    region: source.region,
     source: key,
     sourceName: source.name,
     sourceFlag: source.flag,
@@ -194,16 +311,29 @@ async function fetchSource(key: string, source: typeof NEWS_SOURCES[string], lim
 }
 
 export async function fetchNewsFeed(sourceKey?: string, limit = 10): Promise<NewsItem[]> {
-  const sources = sourceKey && NEWS_SOURCES[sourceKey]
-    ? { [sourceKey]: NEWS_SOURCES[sourceKey] }
-    : NEWS_SOURCES;
+  if (sourceKey && NEWS_SOURCES[sourceKey]) {
+    try {
+      return await fetchSource(sourceKey, NEWS_SOURCES[sourceKey], limit);
+    } catch {
+      return [];
+    }
+  }
+
+  // Each source's share of the merged feed is proportional to its global
+  // popularity weight (clamped so even small outlets always surface).
+  const entries = Object.entries(NEWS_SOURCES);
+  const meanWeight = entries.reduce((s, [, src]) => s + src.weight, 0) / entries.length;
 
   const results = await Promise.allSettled(
-    Object.entries(sources).map(([key, source]) => fetchSource(key, source, limit))
+    entries.map(([key, source]) => {
+      const quota = Math.min(Math.max(Math.round(limit * source.weight / meanWeight), 2), MAX_PER_SOURCE);
+      return fetchSource(key, source, quota);
+    })
   );
 
   // Round-robin interleave: newest from each source in turn, so no single
-  // high-frequency feed (e.g. The Hindu) dominates the top of the merged feed
+  // high-frequency feed dominates the top. Weighted quotas mean popular
+  // sources stay represented in deeper rounds.
   const perSource: NewsItem[][] = [];
   for (const result of results) {
     if (result.status === 'fulfilled' && result.value.length > 0) {
@@ -216,7 +346,7 @@ export async function fetchNewsFeed(sourceKey?: string, limit = 10): Promise<New
   perSource.sort((a, b) => new Date(b[0].pubDate).getTime() - new Date(a[0].pubDate).getTime());
 
   const items: NewsItem[] = [];
-  for (let round = 0; items.length < perSource.length * limit; round++) {
+  for (let round = 0; ; round++) {
     let added = false;
     for (const sourceItems of perSource) {
       if (round < sourceItems.length) {
@@ -239,19 +369,26 @@ export function searchNews(items: NewsItem[], query: string): NewsItem[] {
 }
 
 const SOURCE_TYPES: Record<string, string> = {
-  politico: 'Policy/Analysis',
   ap: 'Wire Service',
-  guardian: 'National Newspaper',
   bbc: 'Public Broadcaster',
+  guardian: 'National Newspaper',
+  economist: 'Magazine/Analysis',
   npr: 'Public Radio',
-  aljazeera: 'International Broadcaster',
+  mercopress: 'Regional News Agency',
   france24: 'International Broadcaster',
-  rfi: 'International Radio',
   euronews: 'Pan-European Broadcaster',
   dw: 'Public Broadcaster',
+  politico: 'Policy/Analysis',
+  rfi: 'International Radio',
+  aljazeera: 'International Broadcaster',
+  allafrica: 'News Aggregator',
+  cna: 'International Broadcaster',
+  scmp: 'National Newspaper',
+  japantimes: 'National Newspaper',
+  abcau: 'Public Broadcaster',
   hindu: 'National Newspaper',
+  indianexpress: 'National Newspaper',
   toi: 'National Newspaper',
-  economist: 'Magazine/Analysis',
 };
 
 export function profileSource(sourceKey: string) {

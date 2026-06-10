@@ -15,15 +15,15 @@ export const runtime = 'nodejs';
 const CHAT_MODEL = google('gemini-2.5-flash');
 const FAST_MODEL = google('gemini-2.5-flash');
 
-const SOURCE_ENUM = ['ap', 'guardian', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist'] as const;
+const SOURCE_ENUM = Object.keys(NEWS_SOURCES) as [string, ...string[]];
 
-const SYSTEM_PROMPT = `You are an expert analyst, multilingual translator, and news briefing agent covering global affairs with a deep focus on Europe, India, and international politics. You have access to live RSS feeds from 13 trusted free sources:
+const SOURCE_LIST = Object.entries(NEWS_SOURCES)
+  .map(([key, s]) => `${s.flag} ${s.name} (${key}, ${s.region})`)
+  .join(', ');
 
-Wire services: AP News 📰
-Global broadcasters: BBC 🇬🇧, NPR 🎙️, Al Jazeera 🌍, The Guardian 🗞️
-European sources: France 24 🇫🇷, RFI 📻, Euronews 🇪🇺, Politico Europe 🇪🇺, Deutsche Welle 🇩🇪
-Indian sources: The Hindu 🇮🇳, Times of India 🇮🇳
-Analysis: The Economist 📊
+const SYSTEM_PROMPT = `You are Briefly's news agent — an expert analyst, multilingual translator, and briefing writer covering global affairs across every region: the Americas, Europe, Middle East & Africa, Asia-Pacific, and India. You have access to live RSS feeds from ${Object.keys(NEWS_SOURCES).length} trusted free sources:
+
+${SOURCE_LIST}
 
 Your capabilities:
 1. Fetch and analyze live news from any or all sources

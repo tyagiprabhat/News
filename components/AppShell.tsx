@@ -55,18 +55,28 @@ export default function AppShell() {
     <main className="flex flex-col h-[100dvh] bg-gray-950 overflow-hidden">
       {/* Header */}
       <header className="flex-shrink-0 h-11 bg-gray-950/95 backdrop-blur border-b border-gray-800 flex items-center px-4 gap-3 z-10">
-        <span className="text-base">🌐</span>
-        <span className="text-sm font-semibold text-gray-200">News AI</span>
+        <span className="text-base">⚡</span>
+        <span className="text-sm font-semibold text-gray-200">Briefly</span>
         <span className="hidden sm:inline text-gray-700 text-xs">|</span>
         <span className="hidden sm:inline text-xs text-gray-500 truncate">
-          AP · Reuters · BBC · NPR · Al Jazeera · France 24 · RFI · Euronews · Politico · DW · The Hindu · TOI · The Economist
+          The world&apos;s news in 60 words — 20 sources, 6 regions
         </span>
+        <button
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+          }}
+          className="ml-auto text-xs text-gray-600 hover:text-gray-300 transition-colors flex-shrink-0"
+          title="Sign out"
+        >
+          Sign out
+        </button>
 
         {/* Install button — desktop */}
         {installPrompt && !installed && (
           <button
             onClick={handleInstall}
-            className="ml-auto hidden sm:flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-full transition-colors flex-shrink-0"
+            className="hidden sm:flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-full transition-colors flex-shrink-0"
           >
             ⬇ Install App
           </button>
@@ -74,7 +84,7 @@ export default function AppShell() {
         {isIos && !showIosHint && !installed && (
           <button
             onClick={() => setShowIosHint(true)}
-            className="ml-auto hidden sm:flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-full transition-colors flex-shrink-0"
+            className="hidden sm:flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-full transition-colors flex-shrink-0"
           >
             ⬇ Install App
           </button>
@@ -93,9 +103,9 @@ export default function AppShell() {
       {installPrompt && !installed && (
         <div className="sm:hidden flex-shrink-0 bg-blue-950 border-b border-blue-800 px-4 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🌐</span>
+            <span className="text-lg">⚡</span>
             <div>
-              <p className="text-xs font-semibold text-blue-200">Install News AI</p>
+              <p className="text-xs font-semibold text-blue-200">Install Briefly</p>
               <p className="text-xs text-blue-400">Add to your home screen</p>
             </div>
           </div>
