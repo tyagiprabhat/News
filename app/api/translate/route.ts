@@ -1,4 +1,4 @@
-import { anthropic } from '@ai-sdk/anthropic';
+import { groq } from '@ai-sdk/groq';
 import { streamText } from 'ai';
 import { buildTranslatePrompt } from '@/lib/translate';
 import { checkRateLimit, getIp } from '@/lib/rate-limit';
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: anthropic('claude-opus-4-8'),
+    model: groq('llama-3.1-8b-instant'),
     messages: [{ role: 'user', content: buildTranslatePrompt(text, targetLanguage, sourceLanguage) }],
   });
 

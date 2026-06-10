@@ -1,4 +1,4 @@
-import { anthropic } from '@ai-sdk/anthropic';
+import { groq } from '@ai-sdk/groq';
 import { streamText, generateText, tool } from 'ai';
 import { z } from 'zod';
 import { fetchNewsFeed, searchNews, NEWS_SOURCES, getAllSourceProfiles } from '@/lib/news';
@@ -9,12 +9,18 @@ import { checkRateLimit, getIp } from '@/lib/rate-limit';
 export const maxDuration = 60;
 export const runtime = 'nodejs';
 
+// Groq free tier:
+// llama-3.3-70b-versatile — 30 RPM, 500 RPD  → used for chat (reasoning + tools)
+// llama-3.1-8b-instant    — 30 RPM, 14,400 RPD → used for summarize/translate (high volume)
+const CHAT_MODEL = groq('llama-3.3-70b-versatile');
+const FAST_MODEL = groq('llama-3.1-8b-instant');
+
 const SOURCE_ENUM = ['ap', 'guardian', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist'] as const;
 
 const SYSTEM_PROMPT = `You are an expert analyst, multilingual translator, and news briefing agent covering global affairs with a deep focus on Europe, India, and international politics. You have access to live RSS feeds from 13 trusted free sources:
 
-Wire services: AP News 📰, Reuters 📡
-Anglophone broadcasters: BBC 🇬🇧, NPR 🎙️, Al Jazeera 🌍
+Wire services: AP News 📰
+Global broadcasters: BBC 🇬🇧, NPR 🎙️, Al Jazeera 🌍, The Guardian 🗞️
 European sources: France 24 🇫🇷, RFI 📻, Euronews 🇪🇺, Politico Europe 🇪🇺, Deutsche Welle 🇩🇪
 Indian sources: The Hindu 🇮🇳, Times of India 🇮🇳
 Analysis: The Economist 📊
@@ -25,10 +31,10 @@ Your capabilities:
 3. Cross-source profiling — compare wire services vs. editorial outlets on the same story
 4. Trend detection — identify what topics dominate the news landscape
 5. Translation — translate any text between languages (French, German, Spanish, Arabic, Hindi, English, and more)
-6. Editorial analysis — explain how framing differs between AP/Reuters wire copy and editorial outlets
+6. Editorial analysis — explain how framing differs between wire copy and editorial outlets
 7. Briefings — generate a structured news digest with AI-written 60-word summaries per story, optionally in any language
 
-Always fetch live news before answering questions about current events. When producing briefings, use the generateBriefing tool — it fetches and summarizes stories in parallel. For translations, use translateText. Be concise but thorough — cite article titles and sources.`;
+Always fetch live news before answering questions about current events. When producing briefings, use the generateBriefing tool. Be concise but thorough — cite article titles and sources.`;
 
 export async function POST(req: Request) {
   const { allowed, retryAfter } = checkRateLimit(getIp(req), 10);
@@ -42,10 +48,10 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: anthropic('claude-opus-4-8'),
+    model: CHAT_MODEL,
     system: SYSTEM_PROMPT,
     messages,
-    maxSteps: 8,
+    maxSteps: 6,
     tools: {
       fetchLatestNews: tool({
         description: 'Fetch the latest news articles from any of the 13 sources.',
@@ -157,7 +163,7 @@ export async function POST(req: Request) {
         }),
         execute: async ({ text, targetLanguage, sourceLanguage }) => {
           const { text: translated } = await generateText({
-            model: anthropic('claude-opus-4-8'),
+            model: FAST_MODEL,
             messages: [{ role: 'user', content: buildTranslatePrompt(text, targetLanguage, sourceLanguage) }],
           });
           return {
@@ -187,9 +193,7 @@ export async function POST(req: Request) {
           if (sources && sources.length > 0) {
             articles = articles.filter(a => sources.includes(a.source as typeof SOURCE_ENUM[number]));
           }
-          if (topic) {
-            articles = searchNews(articles, topic);
-          }
+          if (topic) articles = searchNews(articles, topic);
           articles = articles.slice(0, count ?? 5);
 
           const targetLang = language && language.toLowerCase() !== 'english' ? language : undefined;
@@ -197,7 +201,7 @@ export async function POST(req: Request) {
           const results = await Promise.allSettled(
             articles.map(async article => {
               const { text } = await generateText({
-                model: anthropic('claude-haiku-4-5'),
+                model: FAST_MODEL,
                 messages: [{
                   role: 'user',
                   content: buildSummarizePrompt(article.title, article.contentSnippet, article.sourceName, targetLang),

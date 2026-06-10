@@ -1,4 +1,4 @@
-import { anthropic } from '@ai-sdk/anthropic';
+import { groq } from '@ai-sdk/groq';
 import { streamText } from 'ai';
 import { buildSummarizePrompt } from '@/lib/summarize';
 import { checkRateLimit, getIp } from '@/lib/rate-limit';
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: anthropic('claude-haiku-4-5'),
+    model: groq('llama-3.1-8b-instant'),
     messages: [{ role: 'user', content: buildSummarizePrompt(title, snippet, source, targetLanguage) }],
   });
 

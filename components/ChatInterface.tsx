@@ -64,7 +64,7 @@ export default function ChatInterface() {
         <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]" />
         <div>
           <h2 className="text-sm font-semibold text-gray-200">EU News Agent</h2>
-          <p className="text-xs text-gray-500">Powered by Claude — live RSS analysis</p>
+          <p className="text-xs text-gray-500">Powered by Groq — live RSS, 100% free</p>
         </div>
       </div>
 
