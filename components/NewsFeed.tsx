@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { CATEGORIES, REGIONS } from '@/lib/news';
+import { CATEGORIES } from '@/lib/news';
 
 interface NewsItem {
   title: string;
@@ -124,22 +124,19 @@ function useArticleAI(item: NewsItem, wordCount: number) {
   return { aiSummary, summaryLang, summarizing, translating, translated, translateLang, summarize, translate, reset };
 }
 
-function AiSpinner({ label }: { label: string }) {
+function AiDots() {
   return (
-    <span className="flex items-center gap-1.5 text-xs text-accent">
-      <span className="flex gap-0.5">
-        {[0, 1, 2].map(i => (
-          <span key={i} className="w-1 h-1 rounded-full animate-bounce bg-current" style={{ animationDelay: `${i * 0.12}s` }} />
-        ))}
-      </span>
-      {label}
+    <span className="inline-flex gap-0.5 items-center">
+      {[0, 1, 2].map(i => (
+        <span key={i} className="w-1 h-1 rounded-full animate-bounce bg-accent" style={{ animationDelay: `${i * 0.12}s` }} />
+      ))}
     </span>
   );
 }
 
-/* ── Full-screen editorial card ────────────────────────────────── */
+/* ── Full-screen InShorts-style card ───────────────────────────── */
 
-function FullScreenCard({ item, index, words }: { item: NewsItem; index: number; words: number }) {
+function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
   const ai = useArticleAI(item, words);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
@@ -147,8 +144,6 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
   const cardRef = useRef<HTMLElement>(null);
   const autoTried = useRef(false);
 
-  // Pre-summarize: when a card scrolls into view, generate its 60/90-word
-  // summary once (in English). Cached server-side, so repeat views are instant.
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -174,8 +169,9 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
 
   return (
     <article ref={cardRef} className="snap-start h-full flex flex-col bg-canvas overflow-hidden">
-      {/* Hero image */}
-      <div className="relative h-[38%] flex-shrink-0 bg-surface2">
+
+      {/* ── Hero image ─────────────────────────────────────────── */}
+      <div className="relative flex-shrink-0" style={{ height: '44%' }}>
         {item.imageUrl && !imgFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -186,60 +182,64 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-7xl opacity-40">{item.sourceFlag}</span>
+          <div className="w-full h-full bg-surface2 flex items-center justify-center">
+            <span className="text-6xl opacity-30">{item.sourceFlag}</span>
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-canvas to-transparent" />
-        {/* Category kicker */}
-        <span className={`absolute top-3 left-4 text-[10px] font-semibold uppercase tracking-[0.18em] px-2.5 py-1 ${
-          isBreaking ? 'bg-breaking text-white' : 'bg-canvas/70 backdrop-blur text-accent'
+
+        {/* Gradient fade into card body */}
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-canvas to-transparent" />
+
+        {/* Category kicker — top left */}
+        <span className={`absolute top-3 left-3 text-[10px] font-bold uppercase tracking-[0.16em] px-2 py-0.5 ${
+          isBreaking
+            ? 'bg-breaking text-white'
+            : 'bg-canvas/80 backdrop-blur-sm text-accent'
         }`}>
           {isBreaking ? 'Breaking' : (CATEGORY_LABELS[item.category] ?? item.category)}
         </span>
-        {/* Source line */}
-        <span className="absolute bottom-3 left-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink">
-          <span>{item.sourceFlag}</span>{item.sourceName}
+
+        {/* Source badge — bottom left */}
+        <span className="absolute bottom-2.5 left-3 flex items-center gap-1.5 text-[11px] font-semibold text-ink/90 bg-canvas/75 backdrop-blur-sm px-2 py-0.5">
+          {item.sourceFlag} {item.sourceName}
         </span>
+
+        {/* Active language badge — bottom right */}
         {activeLang && activeLang !== 'English' && (
-          <span className="absolute bottom-3 right-4 text-xs text-accent bg-canvas/70 backdrop-blur px-2 py-1 rounded-full">
+          <span className="absolute bottom-2.5 right-3 text-[11px] text-accent bg-canvas/75 backdrop-blur-sm px-2 py-0.5">
             🌐 {activeLang}
           </span>
         )}
       </div>
 
-      {/* Body */}
-      <div className="flex-1 min-h-0 flex flex-col px-5 pt-3 overflow-y-auto scrollbar-thin">
-        <div className="flex items-baseline gap-3">
-          <span className="font-display text-2xl font-semibold text-accent leading-none">
-            {String(index + 1).padStart(2, '0')}
-          </span>
-          <h2 className="font-display text-[22px] font-semibold text-ink leading-tight">
-            {item.title}
-          </h2>
-        </div>
+      {/* ── Content ────────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 flex flex-col px-4 pt-4 overflow-y-auto scrollbar-thin">
 
+        {/* Title */}
+        <h2 className="font-display text-[21px] font-bold text-ink leading-snug">
+          {item.title}
+        </h2>
+
+        {/* Body */}
         <div className="mt-3 flex-1">
           {(ai.summarizing && !ai.aiSummary) ? (
-            <AiSpinner label={`Writing ${ai.summaryLang !== 'English' ? `in ${ai.summaryLang}` : 'summary'}…`} />
+            <p className="text-[15px] text-ink-muted leading-relaxed flex items-center gap-2">
+              <AiDots /> Writing summary…
+            </p>
           ) : (ai.translating && !ai.translated) ? (
-            <AiSpinner label="Translating…" />
+            <p className="text-[15px] text-ink-muted leading-relaxed flex items-center gap-2">
+              <AiDots /> Translating…
+            </p>
           ) : bodyText ? (
-            <p className={`text-[15px] leading-relaxed ${ai.aiSummary || ai.translated ? 'text-ink' : 'text-ink-muted'}`}>
+            <p className="text-[15px] leading-relaxed text-ink">
               {bodyText}
             </p>
-          ) : (
-            <p className="text-sm text-ink-muted italic">Tap ✦ for an AI summary of this story.</p>
-          )}
+          ) : null}
         </div>
 
-        <div className="rule-accent w-full mt-3" />
-        <p className="mt-2 text-xs text-ink-muted uppercase tracking-wider">
-          {timeAgo(item.pubDate)} · {item.sourceName}
-        </p>
-
+        {/* Language / translate pickers */}
         {showLangPicker && !ai.summarizing && (
-          <div className="pt-2 flex flex-wrap gap-1.5">
+          <div className="pt-3 flex flex-wrap gap-1.5">
             {SUMMARY_LANGS.map(({ code, label, flag }) => (
               <button
                 key={code}
@@ -253,7 +253,7 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
         )}
 
         {showTranslate && (
-          <div className="pt-2 flex flex-wrap gap-1.5">
+          <div className="pt-3 flex flex-wrap gap-1.5">
             {TRANSLATE_LANGS.map(lang => (
               <button
                 key={lang}
@@ -266,37 +266,46 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
           </div>
         )}
 
-        <div className="flex items-center gap-5 py-3">
-          <button
-            onClick={() => { setShowLangPicker(v => !v); setShowTranslate(false); }}
-            className={`text-sm font-medium ${showLangPicker ? 'text-accent' : 'text-accent/90 hover:text-accent'}`}
-          >
-            ✦ Languages
-          </button>
-          <button
-            onClick={() => { setShowTranslate(v => !v); setShowLangPicker(false); }}
-            className={`text-sm ${showTranslate ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
-          >
-            🌐 Translate
-          </button>
-          {(ai.aiSummary || ai.translated) && !ai.summarizing && (
-            <button onClick={() => { ai.reset(); autoTried.current = true; setShowLangPicker(false); setShowTranslate(false); }} className="text-sm text-ink-muted hover:text-ink ml-auto">
-              × Reset
+        {/* Meta row: time · source | AI actions */}
+        <div className="mt-3 pt-3 border-t border-hairline flex items-center justify-between gap-2 flex-shrink-0">
+          <p className="text-[11px] text-ink-muted truncate">
+            {timeAgo(item.pubDate)} · {item.sourceName}
+          </p>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button
+              onClick={() => { setShowLangPicker(v => !v); setShowTranslate(false); }}
+              className={`text-[11px] font-medium transition-colors ${showLangPicker ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
+            >
+              ✦ AI
             </button>
-          )}
+            <button
+              onClick={() => { setShowTranslate(v => !v); setShowLangPicker(false); }}
+              className={`text-[11px] transition-colors ${showTranslate ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
+            >
+              🌐
+            </button>
+            {(ai.aiSummary || ai.translated) && !ai.summarizing && (
+              <button
+                onClick={() => { ai.reset(); autoTried.current = true; setShowLangPicker(false); setShowTranslate(false); }}
+                className="text-[11px] text-ink-muted hover:text-ink transition-colors"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Read full story */}
-      <a
-        href={item.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex-shrink-0 mx-4 mb-3 flex items-center justify-between border border-hairline hover:border-accent px-4 py-3 transition-colors group"
-      >
-        <span className="text-sm font-semibold uppercase tracking-wider text-ink truncate pr-3">Read full story</span>
-        <span className="flex-shrink-0 text-accent text-lg group-hover:translate-x-0.5 transition-transform">→</span>
-      </a>
+        {/* Read full story */}
+        <a
+          href={item.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 mb-4 flex items-center justify-between text-sm font-semibold text-ink hover:text-accent transition-colors group flex-shrink-0"
+        >
+          <span className="uppercase tracking-wider text-xs">Read full story</span>
+          <span className="text-accent group-hover:translate-x-0.5 transition-transform">→</span>
+        </a>
+      </div>
     </article>
   );
 }
@@ -306,7 +315,6 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
 export default function NewsFeed({ words = 60 }: { words?: number }) {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [region, setRegion] = useState<string>('all');
   const [category, setCategory] = useState<string>('all');
 
   const fetchNews = useCallback(async () => {
@@ -325,11 +333,8 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
   useEffect(() => { fetchNews(); }, [fetchNews]);
 
   const visible = useMemo(
-    () => items.filter(i =>
-      (category === 'all' || i.category === category) &&
-      (region === 'all' || i.region === region)
-    ),
-    [items, category, region]
+    () => items.filter(i => category === 'all' || i.category === category),
+    [items, category]
   );
 
   const spinner = (
@@ -342,47 +347,41 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
     </div>
   );
 
-  const empty = <p className="text-center text-ink-muted text-sm p-8">No articles in this view right now</p>;
+  const empty = <p className="text-center text-ink-muted text-sm p-8">No articles in this view right now.</p>;
 
   return (
     <div className="flex flex-col h-full bg-canvas">
-      {/* Category tabs */}
-      <div className="flex gap-1 px-3 pt-2.5 pb-1.5 overflow-x-auto scrollbar-thin flex-nowrap flex-shrink-0">
-        {CATEGORIES.map(({ key, label, emoji }) => (
+
+      {/* ── Category tabs — thin, InShorts-style ─────────────── */}
+      <div className="flex overflow-x-auto scrollbar-none border-b border-hairline flex-shrink-0">
+        {CATEGORIES.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setCategory(key)}
-            className={`text-xs font-medium uppercase tracking-wide px-2.5 py-1 whitespace-nowrap flex-shrink-0 transition-colors border-b-2 ${
-              category === key ? 'text-ink border-accent' : 'text-ink-muted border-transparent hover:text-ink'
+            className={`px-3.5 py-2.5 text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap flex-shrink-0 border-b-2 -mb-px transition-colors ${
+              category === key
+                ? 'border-accent text-ink'
+                : 'border-transparent text-ink-muted hover:text-ink'
             }`}
           >
-            {emoji} {label}
+            {label}
           </button>
         ))}
-      </div>
-
-      {/* Region filter */}
-      <div className="flex items-center gap-1 px-3 pb-2 border-b border-hairline overflow-x-auto scrollbar-thin flex-nowrap flex-shrink-0">
-        {REGIONS.map(({ key, label, emoji }) => (
-          <button
-            key={key}
-            onClick={() => setRegion(key)}
-            className={`text-[11px] px-2 py-0.5 rounded-full transition-colors whitespace-nowrap flex-shrink-0 ${
-              region === key ? 'bg-accent text-accent-ink' : 'bg-surface2 text-ink-muted hover:text-ink'
-            }`}
-          >
-            {emoji} {label}
-          </button>
-        ))}
-        <button onClick={fetchNews} className="ml-auto text-[11px] text-ink-muted hover:text-accent transition-colors flex-shrink-0 pl-2" title="Refresh">
+        <button
+          onClick={fetchNews}
+          className="ml-auto px-3.5 py-2.5 text-ink-muted hover:text-accent transition-colors flex-shrink-0 text-sm"
+          title="Refresh"
+        >
           ↻
         </button>
       </div>
 
-      {/* InShorts-style full-screen swipe deck */}
+      {/* ── Swipe deck ───────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain scrollbar-thin">
         {loading ? spinner : visible.length === 0 ? empty :
-          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} index={i} words={words} />)}
+          visible.map((item, i) => (
+            <FullScreenCard key={`${item.link}-${i}`} item={item} words={words} />
+          ))}
       </div>
     </div>
   );
