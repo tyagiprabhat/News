@@ -84,7 +84,7 @@ export default function AppShell() {
   return (
     <main className="flex flex-col h-[100dvh] bg-canvas overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 h-14 bg-canvas/95 backdrop-blur border-b border-hairline flex items-center px-4 gap-3 z-20">
+      <header className="flex-shrink-0 h-14 glass border-b border-hairline flex items-center px-4 gap-3 z-20">
         <Wordmark />
         <span className="hidden md:inline text-xs text-ink-muted truncate ml-2">
           The world&apos;s news in 60 words — 25 sources, 6 regions
@@ -114,7 +114,7 @@ export default function AppShell() {
           {installPrompt && !installed && (
             <button
               onClick={handleInstall}
-              className="hidden sm:flex items-center gap-1.5 text-xs bg-accent text-accent-ink px-3 py-1 rounded-full font-medium hover:opacity-90 transition-opacity"
+              className="hidden sm:flex items-center gap-1.5 text-xs bg-accent text-accent-ink px-3 py-1 rounded-full font-medium hover:bg-accent-hover transition-colors"
             >
               ⬇ Install
             </button>
@@ -184,7 +184,7 @@ export default function AppShell() {
       {!chatOpen && (
         <button
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 bg-accent text-accent-ink rounded-full pl-4 pr-5 py-3 font-medium shadow-card hover:opacity-90 transition-all active:scale-95"
+          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 bg-accent text-accent-ink rounded-full pl-4 pr-5 py-3 font-medium shadow-card hover:bg-accent-hover transition-colors ease-spring"
         >
           <span className="text-base">✦</span>
           <span className="text-sm">Brève AI</span>

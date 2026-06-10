@@ -138,7 +138,7 @@ export default function ChatInterface() {
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="bg-accent text-accent-ink rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+            className="bg-accent text-accent-ink rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent-hover transition-colors"
           >
             Send
           </button>

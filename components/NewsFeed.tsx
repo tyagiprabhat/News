@@ -190,8 +190,8 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
         {/* Gradient fade into card body */}
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-canvas to-transparent" />
 
-        {/* Category kicker — top left */}
-        <span className={`absolute top-3 left-3 text-[10px] font-bold uppercase tracking-[0.16em] px-2 py-0.5 ${
+        {/* Category kicker — top left, clears the frosted tab bar */}
+        <span className={`absolute top-12 left-3 text-[10px] font-bold uppercase tracking-[0.16em] px-2 py-0.5 ${
           isBreaking
             ? 'bg-breaking text-white'
             : 'bg-canvas/80 backdrop-blur-sm text-accent'
@@ -350,10 +350,10 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
   const empty = <p className="text-center text-ink-muted text-sm p-8">No articles in this view right now.</p>;
 
   return (
-    <div className="flex flex-col h-full bg-canvas">
+    <div className="relative flex flex-col h-full bg-canvas">
 
-      {/* ── Category tabs — thin, InShorts-style ─────────────── */}
-      <div className="flex overflow-x-auto scrollbar-none border-b border-hairline flex-shrink-0">
+      {/* ── Category tabs — frosted glass, cards scroll beneath ── */}
+      <div className="absolute top-0 inset-x-0 z-20 flex overflow-x-auto scrollbar-none border-b border-hairline glass">
         {CATEGORIES.map(({ key, label }) => (
           <button
             key={key}

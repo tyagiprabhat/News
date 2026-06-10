@@ -23,6 +23,7 @@ const config: Config = {
         ink: token('--ink'),
         'ink-muted': token('--ink-muted'),
         accent: token('--accent'),
+        'accent-hover': token('--accent-hover'),
         'accent-ink': token('--accent-ink'),
         breaking: token('--breaking'),
       },
