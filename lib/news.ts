@@ -166,6 +166,14 @@ export const NEWS_SOURCES: Record<string, SourceConfig> = {
     weight: 5,
     topics: ['China', 'Hong Kong', 'Asia', 'Business', 'Tech'],
   },
+  chinadaily: {
+    name: 'China Daily',
+    url: 'https://www.chinadaily.com.cn/rss/world_rss.xml',
+    flag: '🇨🇳',
+    region: 'asia',
+    weight: 4,
+    topics: ['China', 'World', 'Business', 'Politics', 'Asia'],
+  },
   japantimes: {
     name: 'The Japan Times',
     url: 'https://www.japantimes.co.jp/feed/',
@@ -384,6 +392,7 @@ const SOURCE_TYPES: Record<string, string> = {
   allafrica: 'News Aggregator',
   cna: 'International Broadcaster',
   scmp: 'National Newspaper',
+  chinadaily: 'State Newspaper',
   japantimes: 'National Newspaper',
   abcau: 'Public Broadcaster',
   hindu: 'National Newspaper',

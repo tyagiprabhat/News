@@ -59,7 +59,7 @@ export default function AppShell() {
         <span className="text-sm font-semibold text-gray-200">Briefly</span>
         <span className="hidden sm:inline text-gray-700 text-xs">|</span>
         <span className="hidden sm:inline text-xs text-gray-500 truncate">
-          The world&apos;s news in 60 words — 20 sources, 6 regions
+          The world&apos;s news in 60 words — 21 sources, 6 regions
         </span>
         <button
           onClick={async () => {

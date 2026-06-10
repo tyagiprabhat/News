@@ -4,7 +4,7 @@ import SwRegister from '@/components/SwRegister';
 
 export const metadata: Metadata = {
   title: 'Briefly',
-  description: 'The world\'s news in 60 words — AI summaries, briefings & translation from 20 global sources',
+  description: 'The world\'s news in 60 words — AI summaries, briefings & translation from 21 global sources',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

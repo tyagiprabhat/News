@@ -8,7 +8,7 @@ const SUGGESTIONS = [
   "What's breaking in Asia-Pacific right now?",
   "Briefing: top 5 India stories today in Hindi",
   "Compare how Al Jazeera and BBC frame the same story",
-  "What's trending across all 20 sources right now?",
+  "What's trending across all 21 sources right now?",
 ];
 
 function ToolCallBadge({ toolName, state }: { toolName: string; state: string }) {
@@ -64,7 +64,7 @@ export default function ChatInterface() {
         <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]" />
         <div>
           <h2 className="text-sm font-semibold text-gray-200">Briefly Agent</h2>
-          <p className="text-xs text-gray-500">Powered by Gemini 2.5 Flash — 20 live sources, 6 regions</p>
+          <p className="text-xs text-gray-500">Powered by Gemini 2.5 Flash — 21 live sources, 6 regions</p>
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export default function ChatInterface() {
               <div className="text-4xl mb-3">⚡</div>
               <h3 className="text-lg font-semibold text-gray-200 mb-1">Ask about world news</h3>
               <p className="text-sm text-gray-500 max-w-sm">
-                I fetch live articles from 20 free sources across the Americas, Europe, Middle East & Africa, Asia-Pacific, and India — and can summarize, compare coverage, or translate into French, German, Arabic, Hindi, Spanish, and more.
+                I fetch live articles from 21 free sources across the Americas, Europe, Middle East & Africa, Asia-Pacific, and India — and can summarize, compare coverage, or translate into French, German, Arabic, Hindi, Spanish, and more.
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-md">

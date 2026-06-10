@@ -35,6 +35,7 @@ const SOURCE_COLORS: Record<string, string> = {
   allafrica:     'text-yellow-400 bg-yellow-950/50 border-yellow-800/50',
   cna:           'text-fuchsia-400 bg-fuchsia-950/50 border-fuchsia-800/50',
   scmp:          'text-amber-300 bg-amber-950/40 border-amber-700/40',
+  chinadaily:    'text-red-400 bg-red-950/50 border-red-800/50',
   japantimes:    'text-rose-300 bg-rose-950/40 border-rose-700/40',
   abcau:         'text-green-400 bg-green-950/50 border-green-800/50',
 };
@@ -58,6 +59,7 @@ const SOURCE_GRADIENTS: Record<string, string> = {
   allafrica:     'from-yellow-900 to-gray-950',
   cna:           'from-fuchsia-900 to-gray-950',
   scmp:          'from-amber-800 to-gray-950',
+  chinadaily:    'from-red-900 to-gray-950',
   japantimes:    'from-rose-800 to-gray-950',
   abcau:         'from-green-900 to-gray-950',
 };
