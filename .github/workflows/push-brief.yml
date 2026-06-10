@@ -1,0 +1,20 @@
+name: Send morning-brief push (hourly)
+
+on:
+  schedule:
+    - cron: '0 * * * *' # every hour — only subscriptions matching this UTC hour get sent
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger push send
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.APP_URL }}/api/push/send" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "Push send status: $STATUS"
+          # 503 = push not configured yet; don't fail the workflow for that
+          [ "$STATUS" -eq 200 ] || [ "$STATUS" -eq 503 ] || exit 1

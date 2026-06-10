@@ -3,6 +3,7 @@ import { streamText } from 'ai';
 import { buildSummarizePrompt } from '@/lib/summarize';
 import { checkRateLimit, getIp } from '@/lib/rate-limit';
 import { cacheGet, cacheSet, summaryKey } from '@/lib/cache';
+import { tryConsume } from '@/lib/ai-budget';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -35,6 +36,12 @@ export async function POST(req: Request) {
       { error: 'Too many requests.' },
       { status: 429, headers: { 'Retry-After': String(retryAfter) } }
     );
+  }
+
+  // Daily Gemini budget exhausted → degrade to the raw snippet, never error.
+  if (!(await tryConsume('summarize'))) {
+    const fallback = (snippet || title || '').toString().trim();
+    return new Response(fallback, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
   }
 
   const result = streamText({

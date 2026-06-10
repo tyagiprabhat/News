@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import ThemeToggle from '@/components/ThemeToggle';
+import StreakBadge from '@/components/StreakBadge';
 import LanguageOnboarding, { LANGUAGES } from '@/components/LanguageOnboarding';
 import { EDITIONS, type Edition } from '@/lib/gnews';
 import { getPrefs, updatePrefs, pullServerPrefs } from '@/lib/prefs';
@@ -175,6 +176,7 @@ export default function AppShell() {
         </span>
 
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          <StreakBadge />
           {/* Edition pill */}
           <button
             onClick={() => setShowEditionPicker(true)}

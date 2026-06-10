@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { query, HAS_DB } from '@/lib/db';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const CLERK_ENABLED = !!process.env.CLERK_SECRET_KEY;
 

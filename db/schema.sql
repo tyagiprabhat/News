@@ -113,6 +113,20 @@ CREATE TABLE IF NOT EXISTS user_prefs (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── Web Push subscriptions (morning brief) ─────────────────────────
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id       TEXT,
+  endpoint      TEXT NOT NULL UNIQUE,
+  p256dh        TEXT NOT NULL,
+  auth          TEXT NOT NULL,
+  edition       TEXT DEFAULT 'US:en',
+  send_hour_utc SMALLINT DEFAULT 7,
+  failures      SMALLINT DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_push_hour ON push_subscriptions (send_hour_utc);
+
 -- ── Maintenance: purge articles and coverage older than 30 days ────
 -- Run this periodically (or add to ingest cron):
 -- DELETE FROM cluster_coverage WHERE discovered_at < NOW() - INTERVAL '30 days';

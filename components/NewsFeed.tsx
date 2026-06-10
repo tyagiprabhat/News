@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CATEGORIES } from '@/lib/news';
 import Newsroom from '@/components/Newsroom';
 import FollowSheet from '@/components/FollowSheet';
+import MorningBrief from '@/components/MorningBrief';
 import { getPrefs, recordDwell, markRead, touchStreak } from '@/lib/prefs';
 import { rankFeed } from '@/lib/ranking';
+import type { Briefing } from '@/lib/briefing';
 
 interface NewsItem {
   title: string;
@@ -237,8 +239,35 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
   const [showFollows, setShowFollows] = useState(false);
   const [prefsVersion, setPrefsVersion] = useState(0);
 
-  // Daily streak tick + fetch followed-entity stories for My Feed
-  useEffect(() => { touchStreak(); }, []);
+  // Daily streak tick + morning brief on first session of the day
+  const [brief, setBrief] = useState<Briefing | null>(null);
+  const [catchUp, setCatchUp] = useState(false);
+
+  useEffect(() => {
+    const lastVisitBefore = getPrefs().lastVisit;
+    touchStreak();
+    const today = new Date().toISOString().slice(0, 10);
+    let shown: string | null = null;
+    try { shown = localStorage.getItem('breve:brief-shown'); } catch {}
+    if (shown === today) return;
+
+    const gapHours = lastVisitBefore > 0 ? (Date.now() - lastVisitBefore) / 3_600_000 : 0;
+    setCatchUp(gapHours > 12);
+
+    (async () => {
+      try {
+        const lang = getPrefs().lang || 'English';
+        const res = await fetch(`/api/brief?edition=${edition}&lang=${encodeURIComponent(lang)}`);
+        if (!res.ok) return;
+        const b: Briefing = await res.json();
+        if (b.stories?.length >= 3) {
+          setBrief(b);
+          try { localStorage.setItem('breve:brief-shown', today); } catch {}
+        }
+      } catch {}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const entities = getPrefs().follows.filter(f => f.type === 'entity').slice(0, 3);
@@ -315,8 +344,10 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
     window.setTimeout(() => { animating.current = false; }, 550);
   }, []);
 
+  const briefVisible = !!brief && category === 'all';
+  const totalCards = visible.length + (briefVisible ? 1 : 0);
   const totalRef = useRef(0);
-  totalRef.current = visible.length;
+  totalRef.current = totalCards;
 
   // Wheel paging — non-passive listener so we can preventDefault
   useEffect(() => {
@@ -435,22 +466,28 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
         onScroll={onDeckScroll}
         className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain scrollbar-none"
       >
-        {loading ? spinner : visible.length === 0 ? empty :
-          visible.map((item, i) => (
-            <FullScreenCard
-              key={`${item.link}-${i}`}
-              item={item}
-              words={words}
-              onNewsroom={() => setNewsroomStory(item)}
-            />
-          ))}
+        {loading ? spinner : visible.length === 0 ? empty : (
+          <>
+            {briefVisible && brief && (
+              <MorningBrief briefing={brief} catchUp={catchUp} edition={edition} />
+            )}
+            {visible.map((item, i) => (
+              <FullScreenCard
+                key={`${item.link}-${i}`}
+                item={item}
+                words={words}
+                onNewsroom={() => setNewsroomStory(item)}
+              />
+            ))}
+          </>
+        )}
       </div>
 
       {/* ── Desktop pager: chevrons + counter on the right edge ── */}
       {!loading && visible.length > 0 && (
         <div className="hidden lg:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-2">
           <button
-            onClick={() => goTo(index - 1, visible.length)}
+            onClick={() => goTo(index - 1, totalCards)}
             disabled={index === 0}
             aria-label="Previous story"
             className="glass border border-hairline rounded-full w-9 h-9 flex items-center justify-center text-ink-muted hover:text-ink hover:border-accent disabled:opacity-30 disabled:pointer-events-none transition-colors ease-spring"
@@ -458,11 +495,11 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
             ↑
           </button>
           <span className="text-[10px] text-ink-muted tabular-nums glass border border-hairline rounded-full px-2 py-0.5">
-            {index + 1} / {visible.length}
+            {index + 1} / {totalCards}
           </span>
           <button
-            onClick={() => goTo(index + 1, visible.length)}
-            disabled={index >= visible.length - 1}
+            onClick={() => goTo(index + 1, totalCards)}
+            disabled={index >= totalCards - 1}
             aria-label="Next story"
             className="glass border border-hairline rounded-full w-9 h-9 flex items-center justify-center text-ink-muted hover:text-ink hover:border-accent disabled:opacity-30 disabled:pointer-events-none transition-colors ease-spring"
           >

@@ -1,4 +1,4 @@
-const CACHE = 'breve-v1';
+const CACHE = 'breve-v2';
 const PRECACHE = ['/', '/manifest.json', '/icon-192.svg', '/icon-512.svg'];
 
 self.addEventListener('install', e => {
@@ -42,5 +42,33 @@ self.addEventListener('fetch', e => {
         return cached ?? networkFetch;
       })
     )
+  );
+});
+
+// ── Web Push: morning brief notifications ──────────────────────────
+self.addEventListener('push', e => {
+  let data = { title: 'Brève', body: 'Your news brief is ready.', url: '/' };
+  try { data = { ...data, ...e.data.json() }; } catch {}
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192.svg',
+      badge: '/icon-192.svg',
+      data: { url: data.url },
+      tag: 'breve-brief',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if ('focus' in client) { client.navigate(url); return client.focus(); }
+      }
+      return clients.openWindow(url);
+    })
   );
 });
