@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CATEGORIES } from '@/lib/news';
+import Newsroom from '@/components/Newsroom';
 
 interface NewsItem {
   title: string;
@@ -136,7 +137,7 @@ function AiDots() {
 
 /* ── Full-screen InShorts-style card ───────────────────────────── */
 
-function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
+function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: number; onNewsroom: () => void }) {
   const ai = useArticleAI(item, words);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
@@ -273,6 +274,12 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
           </p>
           <div className="flex items-center gap-3 flex-shrink-0">
             <button
+              onClick={onNewsroom}
+              className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors"
+            >
+              ✦ Newsroom
+            </button>
+            <button
               onClick={() => { setShowLangPicker(v => !v); setShowTranslate(false); }}
               className={`text-[11px] font-medium transition-colors ${showLangPicker ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
             >
@@ -316,6 +323,7 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string>('all');
+  const [newsroomStory, setNewsroomStory] = useState<NewsItem | null>(null);
 
   const fetchNews = useCallback(async () => {
     setLoading(true);
@@ -336,6 +344,97 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
     () => items.filter(i => category === 'all' || i.category === category),
     [items, category]
   );
+
+  /* ── Deck pager: one gesture = one card ───────────────────────
+     Touch keeps native snap scrolling. On desktop (fine pointer)
+     the wheel is intercepted so a single scroll gesture advances
+     exactly one card, with arrow keys and chevrons as well.      */
+  const deckRef = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
+  const indexRef = useRef(0);
+  const animating = useRef(false);
+  const newsroomOpen = useRef(false);
+  newsroomOpen.current = newsroomStory !== null;
+
+  const goTo = useCallback((i: number, total: number) => {
+    const deck = deckRef.current;
+    if (!deck) return;
+    const next = Math.max(0, Math.min(i, total - 1));
+    if (next === indexRef.current && deck.scrollTop === next * deck.clientHeight) return;
+    animating.current = true;
+    indexRef.current = next;
+    setIndex(next);
+    deck.scrollTo({ top: next * deck.clientHeight, behavior: 'smooth' });
+    window.setTimeout(() => { animating.current = false; }, 550);
+  }, []);
+
+  const totalRef = useRef(0);
+  totalRef.current = visible.length;
+
+  // Wheel paging — non-passive listener so we can preventDefault
+  useEffect(() => {
+    const deck = deckRef.current;
+    if (!deck || !window.matchMedia('(pointer: fine)').matches) return;
+
+    const onWheel = (e: WheelEvent) => {
+      // Let inner scrollable content (long card bodies) consume the
+      // gesture while it can still move in that direction.
+      let el = e.target as HTMLElement | null;
+      while (el && el !== deck) {
+        if (el.scrollHeight > el.clientHeight + 1) {
+          const down = e.deltaY > 0;
+          const canScroll = down
+            ? el.scrollTop + el.clientHeight < el.scrollHeight - 1
+            : el.scrollTop > 0;
+          if (canScroll) return;
+        }
+        el = el.parentElement;
+      }
+      e.preventDefault();
+      if (animating.current || Math.abs(e.deltaY) < 8) return;
+      goTo(indexRef.current + (e.deltaY > 0 ? 1 : -1), totalRef.current);
+    };
+
+    deck.addEventListener('wheel', onWheel, { passive: false });
+    return () => deck.removeEventListener('wheel', onWheel);
+  }, [goTo]);
+
+  // Keyboard paging: ↑/↓, PageUp/Down, j/k, Space
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (newsroomOpen.current) return;
+      const t = e.target as HTMLElement;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable) return;
+      if (['ArrowDown', 'PageDown', 'j', ' '].includes(e.key)) {
+        e.preventDefault();
+        goTo(indexRef.current + 1, totalRef.current);
+      } else if (['ArrowUp', 'PageUp', 'k'].includes(e.key)) {
+        e.preventDefault();
+        goTo(indexRef.current - 1, totalRef.current);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [goTo]);
+
+  // Keep the counter honest when touch / native snap moves the deck
+  const onDeckScroll = useCallback(() => {
+    const deck = deckRef.current;
+    if (!deck || animating.current || deck.clientHeight === 0) return;
+    const i = Math.round(deck.scrollTop / deck.clientHeight);
+    if (i !== indexRef.current) {
+      indexRef.current = i;
+      setIndex(i);
+    }
+  }, []);
+
+  // New category = back to the top of the deck
+  useEffect(() => {
+    const deck = deckRef.current;
+    if (deck) deck.scrollTop = 0;
+    indexRef.current = 0;
+    setIndex(0);
+  }, [category]);
 
   const spinner = (
     <div className="flex items-center justify-center h-full">
@@ -377,12 +476,59 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
       </div>
 
       {/* ── Swipe deck ───────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain scrollbar-thin">
+      <div
+        ref={deckRef}
+        onScroll={onDeckScroll}
+        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain scrollbar-none"
+      >
         {loading ? spinner : visible.length === 0 ? empty :
           visible.map((item, i) => (
-            <FullScreenCard key={`${item.link}-${i}`} item={item} words={words} />
+            <FullScreenCard
+              key={`${item.link}-${i}`}
+              item={item}
+              words={words}
+              onNewsroom={() => setNewsroomStory(item)}
+            />
           ))}
       </div>
+
+      {/* ── Desktop pager: chevrons + counter on the right edge ── */}
+      {!loading && visible.length > 0 && (
+        <div className="hidden lg:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-2">
+          <button
+            onClick={() => goTo(index - 1, visible.length)}
+            disabled={index === 0}
+            aria-label="Previous story"
+            className="glass border border-hairline rounded-full w-9 h-9 flex items-center justify-center text-ink-muted hover:text-ink hover:border-accent disabled:opacity-30 disabled:pointer-events-none transition-colors ease-spring"
+          >
+            ↑
+          </button>
+          <span className="text-[10px] text-ink-muted tabular-nums glass border border-hairline rounded-full px-2 py-0.5">
+            {index + 1} / {visible.length}
+          </span>
+          <button
+            onClick={() => goTo(index + 1, visible.length)}
+            disabled={index >= visible.length - 1}
+            aria-label="Next story"
+            className="glass border border-hairline rounded-full w-9 h-9 flex items-center justify-center text-ink-muted hover:text-ink hover:border-accent disabled:opacity-30 disabled:pointer-events-none transition-colors ease-spring"
+          >
+            ↓
+          </button>
+        </div>
+      )}
+
+      {/* ── Live agent newsroom ──────────────────────────────── */}
+      {newsroomStory && (
+        <Newsroom
+          story={{
+            title: newsroomStory.title,
+            snippet: newsroomStory.contentSnippet,
+            sourceName: newsroomStory.sourceName,
+            link: newsroomStory.link,
+          }}
+          onClose={() => setNewsroomStory(null)}
+        />
+      )}
     </div>
   );
 }

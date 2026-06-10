@@ -87,7 +87,7 @@ export default function AppShell() {
       <header className="flex-shrink-0 h-14 glass border-b border-hairline flex items-center px-4 gap-3 z-20">
         <Wordmark />
         <span className="hidden md:inline text-xs text-ink-muted truncate ml-2">
-          The world&apos;s news in 60 words — 25 sources, 6 regions
+          The world&apos;s news in 60 words
         </span>
 
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
