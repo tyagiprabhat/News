@@ -2,17 +2,13 @@ import { SignIn } from '@clerk/nextjs';
 
 export default function SignInPage() {
   return (
-    <main className="flex flex-col items-center justify-center min-h-[100dvh] bg-gray-950 px-6 py-10">
+    <main className="flex flex-col items-center justify-center min-h-[100dvh] bg-canvas px-6 py-10">
       <div className="text-center mb-6">
-        <div className="text-5xl mb-2">⚡</div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Brève</h1>
-        <p className="text-sm text-gray-500 mt-1">The world&apos;s news in 60 words</p>
+        <h1 className="font-display text-4xl font-semibold text-ink tracking-tight">Brève</h1>
+        <span className="rule-accent w-16 mx-auto mt-2" />
+        <p className="text-sm text-ink-muted mt-3">The world&apos;s news in 60 words</p>
       </div>
-      <SignIn
-        signUpUrl="/sign-up"
-        fallbackRedirectUrl="/"
-        appearance={{ elements: { footer: { display: 'flex' } } }}
-      />
+      <SignIn signUpUrl="/sign-up" fallbackRedirectUrl="/" />
     </main>
   );
 }

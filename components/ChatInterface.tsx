@@ -18,22 +18,19 @@ function ToolCallBadge({ toolName, state }: { toolName: string; state: string })
     profileSources: '📋 Loading source profiles',
     analyzeCoverage: '📊 Analyzing coverage',
     translateText: '🌐 Translating',
+    generateBriefing: '📰 Building briefing',
   };
 
   return (
     <div className={`inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border ${
       state === 'result'
-        ? 'bg-green-950/40 border-green-800/50 text-green-400'
-        : 'bg-blue-950/40 border-blue-800/50 text-blue-400'
+        ? 'border-accent/50 text-accent bg-accent/5'
+        : 'border-hairline text-ink-muted bg-surface'
     }`}>
       {state !== 'result' && (
         <span className="flex gap-0.5">
           {[0, 1, 2].map(i => (
-            <span
-              key={i}
-              className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
+            <span key={i} className="w-1 h-1 bg-accent rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
           ))}
         </span>
       )}
@@ -59,12 +56,12 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-3">
-        <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]" />
+    <div className="flex flex-col h-full bg-canvas">
+      <div className="px-4 py-3 border-b border-hairline flex items-center gap-3">
+        <span className="w-2 h-2 rounded-full bg-accent" />
         <div>
-          <h2 className="text-sm font-semibold text-gray-200">Brève Agent</h2>
-          <p className="text-xs text-gray-500">Powered by Gemini 2.5 Flash — 25 live sources, 6 regions</p>
+          <h2 className="font-display text-sm font-semibold text-ink">Brève Agent</h2>
+          <p className="text-xs text-ink-muted">Powered by Gemini 2.5 Flash — 25 live sources, 6 regions</p>
         </div>
       </div>
 
@@ -72,10 +69,10 @@ export default function ChatInterface() {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
             <div>
-              <div className="text-4xl mb-3">⚡</div>
-              <h3 className="text-lg font-semibold text-gray-200 mb-1">Ask about world news</h3>
-              <p className="text-sm text-gray-500 max-w-sm">
-                I fetch live articles from 25 free sources across the Americas, Europe, Middle East & Africa, Asia-Pacific, and India — and can summarize, compare coverage, or translate into French, German, Arabic, Hindi, Spanish, and more.
+              <div className="font-display text-4xl font-semibold text-accent mb-3">Brève</div>
+              <h3 className="font-display text-lg font-semibold text-ink mb-1">Ask about world news</h3>
+              <p className="text-sm text-ink-muted max-w-sm">
+                I fetch live articles from 25 free sources across the Americas, Europe, Middle East &amp; Africa, Asia-Pacific, and India — and can summarize, compare coverage, or translate into French, German, Arabic, Hindi, Spanish, and more.
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-md">
@@ -83,7 +80,7 @@ export default function ChatInterface() {
                 <button
                   key={i}
                   onClick={() => submitSuggestion(s)}
-                  className="text-left text-sm text-gray-400 hover:text-gray-200 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 rounded-lg px-4 py-2.5 transition-all"
+                  className="text-left text-sm text-ink-muted hover:text-ink bg-surface hover:bg-surface2 border border-hairline hover:border-accent rounded-lg px-4 py-2.5 transition-all"
                 >
                   {s}
                 </button>
@@ -104,8 +101,8 @@ export default function ChatInterface() {
                 {message.content && (
                   <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                     message.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-sm'
-                      : 'bg-gray-800 text-gray-100 rounded-bl-sm'
+                      ? 'bg-accent text-accent-ink rounded-br-sm'
+                      : 'bg-surface text-ink border border-hairline rounded-bl-sm'
                   }`}>
                     {message.content}
                   </div>
@@ -116,14 +113,10 @@ export default function ChatInterface() {
         )}
         {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="bg-surface border border-hairline rounded-2xl rounded-bl-sm px-4 py-3">
               <div className="flex gap-1">
                 {[0, 1, 2].map(i => (
-                  <div
-                    key={i}
-                    className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
+                  <div key={i} className="w-1.5 h-1.5 bg-ink-muted rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                 ))}
               </div>
             </div>
@@ -132,20 +125,20 @@ export default function ChatInterface() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="px-4 py-3 border-t border-gray-800">
+      <div className="px-4 py-3 border-t border-hairline">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
-            placeholder="Ask about EU or French news..."
+            placeholder="Ask about world news…"
             disabled={isLoading}
-            className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-blue-600 disabled:opacity-50 transition-colors"
+            className="flex-1 bg-surface border border-hairline rounded-xl px-4 py-2.5 text-sm text-ink placeholder-ink-muted focus:outline-none focus:border-accent disabled:opacity-50 transition-colors"
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
+            className="bg-accent text-accent-ink rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
           >
             Send
           </button>

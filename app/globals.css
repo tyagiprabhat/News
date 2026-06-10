@@ -2,37 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme tokens ───────────────────────────────────────────────
+   Éditorial Noir = default (dark, serif, antique gold)
+   Swiss Mono     = [data-theme="swiss"] (light, grotesk, signal red)
+   Values are RGB channel triplets (see tailwind.config.ts).        */
+
+:root,
+[data-theme='noir'] {
+  --canvas: 10 10 11;        /* #0A0A0B ink black */
+  --surface: 22 22 26;       /* #16161A raised panel */
+  --surface-2: 32 32 38;
+  --hairline: 64 61 54;      /* warm low-contrast rule */
+  --ink: 245 242 234;        /* #F5F2EA warm paper */
+  --ink-muted: 156 150 138;
+  --accent: 201 162 39;      /* #C9A227 antique gold */
+  --accent-ink: 10 10 11;    /* text on gold */
+  --breaking: 193 39 45;     /* #C1272D crimson */
+  --font-display: var(--font-fraunces);
+
+  --scroll-thumb: 64 61 54;
+  color-scheme: dark;
+}
+
+[data-theme='swiss'] {
+  --canvas: 255 255 255;     /* pure white */
+  --surface: 255 255 255;
+  --surface-2: 244 244 246;
+  --hairline: 222 222 226;
+  --ink: 0 0 0;              /* true black */
+  --ink-muted: 130 130 138;  /* #8E8E93 */
+  --accent: 255 59 48;       /* #FF3B30 signal red */
+  --accent-ink: 255 255 255;
+  --breaking: 255 59 48;
+  --font-display: var(--font-archivo);
+
+  --scroll-thumb: 200 200 206;
+  color-scheme: light;
+}
+
 @layer base {
   html {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
 
   body {
-    @apply bg-gray-950 text-gray-100;
+    @apply bg-canvas text-ink;
+  }
+
+  /* Swiss Mono headlines: tight, uppercase-friendly grotesk */
+  [data-theme='swiss'] .font-display {
+    letter-spacing: -0.02em;
+  }
+  /* Éditorial Noir headlines: high-contrast serif */
+  [data-theme='noir'] .font-display {
+    letter-spacing: -0.005em;
   }
 }
 
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #374151 transparent;
+    scrollbar-color: rgb(var(--scroll-thumb)) transparent;
   }
-
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #374151;
+    background-color: rgb(var(--scroll-thumb));
     border-radius: 2px;
   }
 
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Hairline rule used as the editorial divider on cards */
+  .rule-accent {
+    background: linear-gradient(90deg, rgb(var(--accent)) 0%, transparent 60%);
+    height: 1px;
   }
 }
 
@@ -44,7 +90,6 @@
   }
 }
 
-/* Prevent overscroll bounce on iOS */
 html, body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;

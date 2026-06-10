@@ -2,8 +2,21 @@ import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/themes';
 import { Analytics } from '@vercel/analytics/react';
+import { Inter, Fraunces, Archivo } from 'next/font/google';
 import './globals.css';
 import SwRegister from '@/components/SwRegister';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces',
+  display: 'swap',
+  axes: ['opsz'],
+});
+const archivo = Archivo({ subsets: ['latin'], variable: '--font-archivo', display: 'swap' });
+
+// Set the saved theme before paint to avoid a flash of the wrong theme.
+const themeScript = `(function(){try{var t=localStorage.getItem('breve-theme')||'noir';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','noir');}})();`;
 
 export const metadata: Metadata = {
   title: 'Brève',
@@ -21,7 +34,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#030712',
+  themeColor: '#0A0A0B',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -31,8 +44,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const body = (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" className={`${inter.variable} ${fraunces.variable} ${archivo.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="antialiased font-body">
         {children}
         <SwRegister />
         <Analytics />
@@ -50,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider
       appearance={{
         baseTheme: dark,
-        variables: { colorPrimary: '#2563eb', colorBackground: '#030712' },
+        variables: { colorPrimary: '#C9A227', colorBackground: '#0A0A0B' },
       }}
     >
       {body}

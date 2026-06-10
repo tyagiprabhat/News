@@ -16,66 +16,6 @@ interface NewsItem {
   sourceFlag: string;
 }
 
-const SOURCE_COLORS: Record<string, string> = {
-  ap:            'text-blue-400 bg-blue-950/50 border-blue-800/50',
-  guardian:      'text-orange-400 bg-orange-950/50 border-orange-800/50',
-  bbc:           'text-red-400 bg-red-950/50 border-red-800/50',
-  nyt:           'text-gray-200 bg-gray-800/60 border-gray-600/50',
-  wapo:          'text-slate-300 bg-slate-900/60 border-slate-700/50',
-  npr:           'text-indigo-400 bg-indigo-950/50 border-indigo-800/50',
-  pbs:           'text-blue-400 bg-blue-950/50 border-blue-800/50',
-  propublica:    'text-orange-300 bg-orange-950/40 border-orange-700/40',
-  aljazeera:     'text-emerald-400 bg-emerald-950/50 border-emerald-800/50',
-  france24:      'text-blue-300 bg-blue-950/40 border-blue-700/40',
-  rfi:           'text-purple-400 bg-purple-950/50 border-purple-800/50',
-  euronews:      'text-cyan-400 bg-cyan-950/50 border-cyan-800/50',
-  politico:      'text-sky-400 bg-sky-950/50 border-sky-800/50',
-  dw:            'text-teal-400 bg-teal-950/50 border-teal-800/50',
-  hindu:         'text-rose-400 bg-rose-950/50 border-rose-800/50',
-  indianexpress: 'text-pink-400 bg-pink-950/50 border-pink-800/50',
-  toi:           'text-amber-400 bg-amber-950/50 border-amber-800/50',
-  economist:     'text-red-300 bg-red-950/40 border-red-700/40',
-  mercopress:    'text-lime-400 bg-lime-950/50 border-lime-800/50',
-  allafrica:     'text-yellow-400 bg-yellow-950/50 border-yellow-800/50',
-  cna:           'text-fuchsia-400 bg-fuchsia-950/50 border-fuchsia-800/50',
-  scmp:          'text-amber-300 bg-amber-950/40 border-amber-700/40',
-  chinadaily:    'text-red-400 bg-red-950/50 border-red-800/50',
-  japantimes:    'text-rose-300 bg-rose-950/40 border-rose-700/40',
-  abcau:         'text-green-400 bg-green-950/50 border-green-800/50',
-};
-
-const SOURCE_GRADIENTS: Record<string, string> = {
-  ap:            'from-blue-900 to-gray-950',
-  guardian:      'from-orange-900 to-gray-950',
-  bbc:           'from-red-900 to-gray-950',
-  nyt:           'from-gray-700 to-gray-950',
-  wapo:          'from-slate-800 to-gray-950',
-  npr:           'from-indigo-900 to-gray-950',
-  pbs:           'from-blue-900 to-gray-950',
-  propublica:    'from-orange-900 to-gray-950',
-  aljazeera:     'from-emerald-900 to-gray-950',
-  france24:      'from-blue-800 to-gray-950',
-  rfi:           'from-purple-900 to-gray-950',
-  euronews:      'from-cyan-900 to-gray-950',
-  politico:      'from-sky-900 to-gray-950',
-  dw:            'from-teal-900 to-gray-950',
-  hindu:         'from-rose-900 to-gray-950',
-  indianexpress: 'from-pink-900 to-gray-950',
-  toi:           'from-amber-900 to-gray-950',
-  economist:     'from-red-800 to-gray-950',
-  mercopress:    'from-lime-900 to-gray-950',
-  allafrica:     'from-yellow-900 to-gray-950',
-  cna:           'from-fuchsia-900 to-gray-950',
-  scmp:          'from-amber-800 to-gray-950',
-  chinadaily:    'from-red-900 to-gray-950',
-  japantimes:    'from-rose-800 to-gray-950',
-  abcau:         'from-green-900 to-gray-950',
-};
-
-const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
-  CATEGORIES.map(c => [c.key, `${c.emoji} ${c.label}`])
-);
-
 const SUMMARY_LANGS = [
   { code: 'EN', label: 'English', flag: '🇺🇸' },
   { code: 'FR', label: 'French',  flag: '🇫🇷' },
@@ -87,6 +27,10 @@ const SUMMARY_LANGS = [
 ];
 
 const TRANSLATE_LANGS = ['French', 'German', 'Spanish', 'Arabic', 'Hindi', 'Portuguese', 'Italian', 'English'];
+
+const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map(c => [c.key, c.label])
+);
 
 function truncateWords(text: string | undefined, max: number): string {
   if (!text) return '';
@@ -180,9 +124,9 @@ function useArticleAI(item: NewsItem, wordCount: number) {
   return { aiSummary, summaryLang, summarizing, translating, translated, translateLang, summarize, translate, reset };
 }
 
-function AiSpinner({ color, label }: { color: string; label: string }) {
+function AiSpinner({ label }: { label: string }) {
   return (
-    <span className={`flex items-center gap-1.5 text-xs ${color}`}>
+    <span className="flex items-center gap-1.5 text-xs text-accent">
       <span className="flex gap-0.5">
         {[0, 1, 2].map(i => (
           <span key={i} className="w-1 h-1 rounded-full animate-bounce bg-current" style={{ animationDelay: `${i * 0.12}s` }} />
@@ -193,23 +137,22 @@ function AiSpinner({ color, label }: { color: string; label: string }) {
   );
 }
 
-/* ── Full-screen InShorts-style card (mobile + desktop) ────────── */
+/* ── Full-screen editorial card ────────────────────────────────── */
 
-function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
+function FullScreenCard({ item, index, words }: { item: NewsItem; index: number; words: number }) {
   const ai = useArticleAI(item, words);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
-  const colorClass = SOURCE_COLORS[item.source] ?? 'text-gray-400 bg-gray-800/40 border-gray-700/40';
-  const gradient = SOURCE_GRADIENTS[item.source] ?? 'from-gray-800 to-gray-950';
   const bodyText = ai.translated ?? ai.aiSummary ?? truncateWords(item.contentSnippet, words);
   const activeLang = ai.translateLang ?? ai.summaryLang;
+  const isBreaking = item.category === 'conflict';
 
   return (
-    <div className="snap-start h-full flex flex-col bg-gray-950 overflow-hidden">
+    <article className="snap-start h-full flex flex-col bg-canvas overflow-hidden">
       {/* Hero image */}
-      <div className="relative h-[38%] flex-shrink-0 bg-gray-900">
+      <div className="relative h-[38%] flex-shrink-0 bg-surface2">
         {item.imageUrl && !imgFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -220,19 +163,23 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-            <span className="text-7xl opacity-60">{item.sourceFlag}</span>
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-7xl opacity-40">{item.sourceFlag}</span>
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-gray-950 to-transparent" />
-        <span className={`absolute bottom-3 left-4 inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border backdrop-blur ${colorClass}`}>
-          {item.sourceFlag} {item.sourceName}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-canvas to-transparent" />
+        {/* Category kicker */}
+        <span className={`absolute top-3 left-4 text-[10px] font-semibold uppercase tracking-[0.18em] px-2.5 py-1 ${
+          isBreaking ? 'bg-breaking text-white' : 'bg-canvas/70 backdrop-blur text-accent'
+        }`}>
+          {isBreaking ? 'Breaking' : (CATEGORY_LABELS[item.category] ?? item.category)}
         </span>
-        <span className="absolute top-3 left-4 text-xs text-gray-200 bg-gray-950/60 backdrop-blur px-2.5 py-1 rounded-full">
-          {CATEGORY_LABELS[item.category] ?? item.category}
+        {/* Source line */}
+        <span className="absolute bottom-3 left-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink">
+          <span>{item.sourceFlag}</span>{item.sourceName}
         </span>
         {activeLang && activeLang !== 'English' && (
-          <span className="absolute bottom-3 right-4 text-xs text-blue-300 bg-gray-950/70 backdrop-blur px-2 py-1 rounded-full">
+          <span className="absolute bottom-3 right-4 text-xs text-accent bg-canvas/70 backdrop-blur px-2 py-1 rounded-full">
             🌐 {activeLang}
           </span>
         )}
@@ -240,28 +187,32 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
 
       {/* Body */}
       <div className="flex-1 min-h-0 flex flex-col px-5 pt-3 overflow-y-auto scrollbar-thin">
-        <h2 className="text-xl font-bold text-white leading-snug">
-          {item.title}
-        </h2>
+        <div className="flex items-baseline gap-3">
+          <span className="font-display text-2xl font-semibold text-accent leading-none">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <h2 className="font-display text-[22px] font-semibold text-ink leading-tight">
+            {item.title}
+          </h2>
+        </div>
 
         <div className="mt-3 flex-1">
           {(ai.summarizing && !ai.aiSummary) ? (
-            <AiSpinner color="text-purple-400" label={`Writing ${ai.summaryLang !== 'English' ? `in ${ai.summaryLang}` : 'summary'}…`} />
+            <AiSpinner label={`Writing ${ai.summaryLang !== 'English' ? `in ${ai.summaryLang}` : 'summary'}…`} />
           ) : (ai.translating && !ai.translated) ? (
-            <AiSpinner color="text-blue-400" label="Translating…" />
+            <AiSpinner label="Translating…" />
           ) : bodyText ? (
-            <p className={`text-[15px] leading-relaxed ${
-              ai.translated ? 'text-blue-200' : ai.aiSummary ? 'text-gray-100' : 'text-gray-300'
-            }`}>
+            <p className={`text-[15px] leading-relaxed ${ai.aiSummary || ai.translated ? 'text-ink' : 'text-ink-muted'}`}>
               {bodyText}
             </p>
           ) : (
-            <p className="text-sm text-gray-500 italic">Tap ✨ for an AI summary of this story.</p>
+            <p className="text-sm text-ink-muted italic">Tap ✦ for an AI summary of this story.</p>
           )}
         </div>
 
-        <p className="mt-3 text-xs text-gray-500">
-          {timeAgo(item.pubDate)} <span className="text-gray-700 mx-1">|</span> {item.sourceName}
+        <div className="rule-accent w-full mt-3" />
+        <p className="mt-2 text-xs text-ink-muted uppercase tracking-wider">
+          {timeAgo(item.pubDate)} · {item.sourceName}
         </p>
 
         {showLangPicker && !ai.aiSummary && !ai.summarizing && (
@@ -270,7 +221,7 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
               <button
                 key={code}
                 onClick={() => { setShowLangPicker(false); ai.summarize(label); }}
-                className="text-xs px-2.5 py-1 rounded-full bg-gray-800 hover:bg-purple-800 active:bg-purple-800 border border-gray-700 text-gray-300 transition-all"
+                className="text-xs px-2.5 py-1 rounded-full bg-surface2 border border-hairline text-ink hover:border-accent transition-colors"
               >
                 {flag} {code}
               </button>
@@ -284,7 +235,7 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
               <button
                 key={lang}
                 onClick={() => { setShowTranslate(false); ai.translate(lang); }}
-                className="text-xs px-2.5 py-1 rounded-full bg-gray-800 hover:bg-blue-700 active:bg-blue-700 border border-gray-700 text-gray-300 transition-colors"
+                className="text-xs px-2.5 py-1 rounded-full bg-surface2 border border-hairline text-ink hover:border-accent transition-colors"
               >
                 {lang}
               </button>
@@ -292,40 +243,39 @@ function FullScreenCard({ item, words }: { item: NewsItem; words: number }) {
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex items-center gap-5 py-3">
           {!ai.aiSummary && !ai.summarizing ? (
             <button
               onClick={() => { setShowLangPicker(v => !v); setShowTranslate(false); }}
-              className={`text-sm font-medium ${showLangPicker ? 'text-purple-300' : 'text-purple-400 hover:text-purple-300'}`}
+              className={`text-sm font-medium ${showLangPicker ? 'text-accent' : 'text-accent/90 hover:text-accent'}`}
             >
-              ✨ AI Summary
+              ✦ Summary
             </button>
           ) : !ai.summarizing && (
-            <button onClick={() => { ai.reset(); setShowLangPicker(false); setShowTranslate(false); }} className="text-sm text-gray-500 hover:text-gray-300">
+            <button onClick={() => { ai.reset(); setShowLangPicker(false); setShowTranslate(false); }} className="text-sm text-ink-muted hover:text-ink">
               × Reset
             </button>
           )}
           <button
             onClick={() => { setShowTranslate(v => !v); setShowLangPicker(false); }}
-            className={`text-sm ${showTranslate ? 'text-blue-300' : 'text-gray-400 hover:text-blue-300'}`}
+            className={`text-sm ${showTranslate ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
           >
             🌐 Translate
           </button>
         </div>
       </div>
 
-      {/* Bottom "read more" strip */}
+      {/* Read full story */}
       <a
         href={item.link}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex-shrink-0 mx-4 mb-3 flex items-center justify-between rounded-xl bg-gray-900 border border-gray-800 hover:bg-gray-800 active:bg-gray-800 px-4 py-3 transition-colors"
+        className="flex-shrink-0 mx-4 mb-3 flex items-center justify-between border border-hairline hover:border-accent px-4 py-3 transition-colors group"
       >
-        <span className="text-sm font-semibold text-gray-200 truncate pr-3">Tap to read full story</span>
-        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm">›</span>
+        <span className="text-sm font-semibold uppercase tracking-wider text-ink truncate pr-3">Read full story</span>
+        <span className="flex-shrink-0 text-accent text-lg group-hover:translate-x-0.5 transition-transform">→</span>
       </a>
-    </div>
+    </article>
   );
 }
 
@@ -364,22 +314,24 @@ export default function NewsFeed() {
     <div className="flex items-center justify-center h-full">
       <div className="flex gap-1">
         {[0, 1, 2].map(i => (
-          <div key={i} className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+          <div key={i} className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
         ))}
       </div>
     </div>
   );
 
+  const empty = <p className="text-center text-ink-muted text-sm p-8">No articles in this view right now</p>;
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Category tabs — primary, InShorts style */}
-      <div className="flex gap-1 px-3 pt-2 pb-1.5 overflow-x-auto scrollbar-thin flex-nowrap flex-shrink-0">
+    <div className="flex flex-col h-full bg-canvas">
+      {/* Category tabs */}
+      <div className="flex gap-1 px-3 pt-2.5 pb-1.5 overflow-x-auto scrollbar-thin flex-nowrap flex-shrink-0">
         {CATEGORIES.map(({ key, label, emoji }) => (
           <button
             key={key}
             onClick={() => setCategory(key)}
-            className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors whitespace-nowrap flex-shrink-0 ${
-              category === key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            className={`text-xs font-medium uppercase tracking-wide px-2.5 py-1 whitespace-nowrap flex-shrink-0 transition-colors border-b-2 ${
+              category === key ? 'text-ink border-accent' : 'text-ink-muted border-transparent hover:text-ink'
             }`}
           >
             {emoji} {label}
@@ -387,39 +339,34 @@ export default function NewsFeed() {
         ))}
       </div>
 
-      {/* Region filter — secondary row */}
-      <div className="flex items-center gap-1 px-3 pb-2 border-b border-gray-800 overflow-x-auto scrollbar-thin flex-nowrap flex-shrink-0">
+      {/* Region filter */}
+      <div className="flex items-center gap-1 px-3 pb-2 border-b border-hairline overflow-x-auto scrollbar-thin flex-nowrap flex-shrink-0">
         {REGIONS.map(({ key, label, emoji }) => (
           <button
             key={key}
             onClick={() => setRegion(key)}
             className={`text-[11px] px-2 py-0.5 rounded-full transition-colors whitespace-nowrap flex-shrink-0 ${
-              region === key ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-500 hover:bg-gray-800 border border-gray-800'
+              region === key ? 'bg-accent text-accent-ink' : 'bg-surface2 text-ink-muted hover:text-ink'
             }`}
           >
             {emoji} {label}
           </button>
         ))}
-        <button onClick={fetchNews} className="ml-auto text-[11px] text-gray-600 hover:text-blue-400 transition-colors flex-shrink-0 pl-2" title="Refresh">
+        <button onClick={fetchNews} className="ml-auto text-[11px] text-ink-muted hover:text-accent transition-colors flex-shrink-0 pl-2" title="Refresh">
           ↻
         </button>
       </div>
 
-      {/* Swipeable card deck — mobile gets 60-word summaries, desktop 90 */}
+      {/* Mobile: 60-word swipe deck */}
       <div className="lg:hidden flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain">
-        {loading ? spinner : visible.length === 0 ? (
-          <p className="text-center text-gray-500 text-sm p-8">No articles in this category right now</p>
-        ) : (
-          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} words={60} />)
-        )}
+        {loading ? spinner : visible.length === 0 ? empty :
+          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} index={i} words={60} />)}
       </div>
 
+      {/* Desktop: 90-word swipe deck */}
       <div className="hidden lg:block flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain">
-        {loading ? spinner : visible.length === 0 ? (
-          <p className="text-center text-gray-500 text-sm p-8">No articles in this category right now</p>
-        ) : (
-          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} words={90} />)
-        )}
+        {loading ? spinner : visible.length === 0 ? empty :
+          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} index={i} words={90} />)}
       </div>
     </div>
   );
