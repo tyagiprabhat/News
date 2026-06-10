@@ -1,6 +1,6 @@
 {
-  "name": "Briefly — World News in 60 Words",
-  "short_name": "Briefly",
+  "name": "Brève — World News in 60 Words",
+  "short_name": "Brève",
   "description": "The world's news in 60 words — AI summaries from 21 global sources",
   "start_url": "/",
   "display": "standalone",

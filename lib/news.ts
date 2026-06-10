@@ -229,7 +229,7 @@ type RawItem = Parser.Item & {
 };
 
 const parser: Parser<Record<string, unknown>, RawItem> = new Parser({
-  headers: { 'User-Agent': 'Briefly/1.0 (RSS Reader)' },
+  headers: { 'User-Agent': 'Breve/1.0 (RSS Reader)' },
   timeout: 8000,
   customFields: {
     item: [

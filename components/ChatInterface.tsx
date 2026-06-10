@@ -63,7 +63,7 @@ export default function ChatInterface() {
       <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-3">
         <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]" />
         <div>
-          <h2 className="text-sm font-semibold text-gray-200">Briefly Agent</h2>
+          <h2 className="text-sm font-semibold text-gray-200">Brève Agent</h2>
           <p className="text-xs text-gray-500">Powered by Gemini 2.5 Flash — 21 live sources, 6 regions</p>
         </div>
       </div>

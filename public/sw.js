@@ -1,4 +1,4 @@
-const CACHE = 'briefly-v1';
+const CACHE = 'breve-v1';
 const PRECACHE = ['/', '/manifest.json', '/icon-192.svg', '/icon-512.svg'];
 
 self.addEventListener('install', e => {
