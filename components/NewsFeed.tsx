@@ -146,11 +146,20 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
   const activeLang = ai.summaryLang;
   const isBreaking = item.category === 'conflict';
 
+  // Density: short summaries get larger, airier type so the card never
+  // feels half-empty on tall screens; long ones compact to fit.
+  const bodyWords = bodyText ? bodyText.trim().split(/\s+/).length : 0;
+  const bodyClass = bodyWords <= 45
+    ? 'text-[17px] leading-[1.65]'
+    : bodyWords <= 80
+      ? 'text-[16px] leading-[1.6]'
+      : 'text-[15px] leading-relaxed';
+
   return (
     <article ref={cardRef} className="snap-start h-full flex flex-col bg-canvas overflow-hidden">
 
       {/* ── Hero image ─────────────────────────────────────────── */}
-      <div className="relative flex-shrink-0" style={{ height: '44%' }}>
+      <div className="relative flex-shrink-0" style={{ height: '48%' }}>
         {item.imageUrl && !imgFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -195,7 +204,7 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
       <div className="flex-1 min-h-0 flex flex-col px-4 pt-4 overflow-y-auto scrollbar-thin">
 
         {/* Title */}
-        <h2 className="font-display text-[21px] font-bold text-ink leading-snug">
+        <h2 className="font-display text-[23px] font-bold text-ink leading-[1.25] tracking-[-0.01em]">
           {item.title}
         </h2>
 
@@ -224,7 +233,7 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
               <AiDots /> Writing summary…
             </p>
           ) : bodyText ? (
-            <p className="text-[15px] leading-relaxed text-ink">
+            <p className={`${bodyClass} text-ink`}>
               {bodyText}
             </p>
           ) : null}
@@ -263,7 +272,7 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
           href={item.link}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-3 mb-4 flex items-center justify-between text-sm font-semibold text-ink hover:text-accent transition-colors group flex-shrink-0"
+          className="mt-2.5 mb-3.5 flex items-center justify-between text-sm font-semibold text-ink hover:text-accent transition-colors group flex-shrink-0"
         >
           <span className="uppercase tracking-wider text-xs">Read full story</span>
           <span className="text-accent group-hover:translate-x-0.5 transition-transform">→</span>
