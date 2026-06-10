@@ -4,7 +4,9 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import ThemeToggle from '@/components/ThemeToggle';
+import LanguageOnboarding, { LANGUAGES } from '@/components/LanguageOnboarding';
 import { EDITIONS, type Edition } from '@/lib/gnews';
+import { getPrefs, updatePrefs, pullServerPrefs } from '@/lib/prefs';
 
 const CLERK_ENABLED = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -92,6 +94,9 @@ export default function AppShell() {
   const [showIosHint, setShowIosHint] = useState(false);
   const [edition, setEdition] = useState<Edition>(EDITIONS[0]);
   const [showEditionPicker, setShowEditionPicker] = useState(false);
+  const [lang, setLang] = useState('English');
+  const [showLangSheet, setShowLangSheet] = useState(false);
+  const [langFirstRun, setLangFirstRun] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -119,6 +124,17 @@ export default function AppShell() {
       }
     } catch {}
 
+    // Language preference: pull server mirror, then check first-run
+    (async () => {
+      await pullServerPrefs();
+      const prefs = getPrefs();
+      setLang(prefs.lang);
+      if (!prefs.langSet) {
+        setLangFirstRun(true);
+        setShowLangSheet(true);
+      }
+    })();
+
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
@@ -133,7 +149,16 @@ export default function AppShell() {
   const handleEditionSelect = (ed: Edition) => {
     setEdition(ed);
     try { localStorage.setItem('breve-edition', ed.key); } catch {}
+    updatePrefs({ edition: ed.key });
   };
+
+  const handleLangSelect = (selected: string) => {
+    setLang(selected);
+    setLangFirstRun(false);
+    updatePrefs({ lang: selected, langSet: true });
+  };
+
+  const langFlag = LANGUAGES.find(l => l.label === lang)?.flag ?? '🌐';
 
   const phonePreview = isDesktop && viewMode === 'phone';
   const deckWords = isDesktop && viewMode === 'web' ? 90 : 60;
@@ -158,6 +183,16 @@ export default function AppShell() {
           >
             <span>{edition.flag}</span>
             <span className="hidden sm:inline">{edition.key.split(':')[0]}</span>
+          </button>
+
+          {/* Reading-language pill */}
+          <button
+            onClick={() => setShowLangSheet(true)}
+            className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink border border-hairline rounded-full px-2.5 py-1 transition-colors"
+            title="Reading language"
+          >
+            <span>{langFlag}</span>
+            <span className="hidden sm:inline">Aa</span>
           </button>
 
           {/* Desktop device toggle */}
@@ -236,6 +271,16 @@ export default function AppShell() {
           current={edition}
           onSelect={handleEditionSelect}
           onClose={() => setShowEditionPicker(false)}
+        />
+      )}
+
+      {/* Language onboarding / settings sheet */}
+      {showLangSheet && (
+        <LanguageOnboarding
+          current={lang}
+          firstRun={langFirstRun}
+          onSelect={handleLangSelect}
+          onClose={() => setShowLangSheet(false)}
         />
       )}
 

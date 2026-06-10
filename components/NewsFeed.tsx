@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CATEGORIES } from '@/lib/news';
 import Newsroom from '@/components/Newsroom';
+import FollowSheet from '@/components/FollowSheet';
+import { getPrefs, recordDwell, markRead, touchStreak } from '@/lib/prefs';
+import { rankFeed } from '@/lib/ranking';
 
 interface NewsItem {
   title: string;
@@ -16,18 +19,6 @@ interface NewsItem {
   sourceName: string;
   sourceFlag: string;
 }
-
-const SUMMARY_LANGS = [
-  { code: 'EN', label: 'English', flag: '🇺🇸' },
-  { code: 'FR', label: 'French',  flag: '🇫🇷' },
-  { code: 'DE', label: 'German',  flag: '🇩🇪' },
-  { code: 'ES', label: 'Spanish', flag: '🇪🇸' },
-  { code: 'AR', label: 'Arabic',  flag: '🇸🇦' },
-  { code: 'HI', label: 'Hindi',   flag: '🇮🇳' },
-  { code: 'IT', label: 'Italian', flag: '🇮🇹' },
-];
-
-const TRANSLATE_LANGS = ['French', 'German', 'Spanish', 'Arabic', 'Hindi', 'Portuguese', 'Italian', 'English'];
 
 const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
   CATEGORIES.map(c => [c.key, c.label])
@@ -53,16 +44,11 @@ function useArticleAI(item: NewsItem, wordCount: number) {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [summaryLang, setSummaryLang] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
-  const [translating, setTranslating] = useState(false);
-  const [translated, setTranslated] = useState<string | null>(null);
-  const [translateLang, setTranslateLang] = useState<string | null>(null);
 
   const summarize = async (targetLanguage: string) => {
     setSummarizing(true);
     setAiSummary('');
     setSummaryLang(targetLanguage);
-    setTranslated(null);
-    setTranslateLang(null);
     try {
       const lang = targetLanguage === 'English' ? undefined : targetLanguage;
       const res = await fetch('/api/summarize', {
@@ -86,43 +72,7 @@ function useArticleAI(item: NewsItem, wordCount: number) {
     }
   };
 
-  const translate = async (lang: string) => {
-    setTranslating(true);
-    setTranslated(null);
-    setTranslateLang(lang);
-    const src = aiSummary || truncateWords(item.contentSnippet, wordCount) || item.title;
-    try {
-      const res = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: src, targetLanguage: lang }),
-      });
-      if (!res.body) throw new Error();
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let full = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        full += decoder.decode(value, { stream: true });
-        setTranslated(full);
-      }
-    } catch {
-      setTranslated(null);
-      setTranslateLang(null);
-    } finally {
-      setTranslating(false);
-    }
-  };
-
-  const reset = () => {
-    setAiSummary(null);
-    setSummaryLang(null);
-    setTranslated(null);
-    setTranslateLang(null);
-  };
-
-  return { aiSummary, summaryLang, summarizing, translating, translated, translateLang, summarize, translate, reset };
+  return { aiSummary, summaryLang, summarizing, summarize };
 }
 
 function AiDots() {
@@ -139,33 +89,47 @@ function AiDots() {
 
 function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: number; onNewsroom: () => void }) {
   const ai = useArticleAI(item, words);
-  const [showLangPicker, setShowLangPicker] = useState(false);
-  const [showTranslate, setShowTranslate] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const autoTried = useRef(false);
 
+  // Auto-summarize in the user's language on view + dwell-time tracking
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
+    let enteredAt = 0;
+    let readTimer: ReturnType<typeof setTimeout> | null = null;
+
     const obs = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting && !autoTried.current) {
-            autoTried.current = true;
-            ai.summarize('English');
+          if (entry.isIntersecting) {
+            enteredAt = Date.now();
+            readTimer = setTimeout(() => markRead(item.link), 3000);
+            if (!autoTried.current) {
+              autoTried.current = true;
+              ai.summarize(getPrefs().lang || 'English');
+            }
+          } else if (enteredAt > 0) {
+            if (readTimer) clearTimeout(readTimer);
+            recordDwell(item, Date.now() - enteredAt);
+            enteredAt = 0;
           }
         }
       },
       { threshold: 0.6 }
     );
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => {
+      if (readTimer) clearTimeout(readTimer);
+      if (enteredAt > 0) recordDwell(item, Date.now() - enteredAt);
+      obs.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const bodyText = ai.translated ?? ai.aiSummary ?? truncateWords(item.contentSnippet, words);
-  const activeLang = ai.translateLang ?? ai.summaryLang;
+  const bodyText = ai.aiSummary ?? truncateWords(item.contentSnippet, words);
+  const activeLang = ai.summaryLang;
   const isBreaking = item.category === 'conflict';
 
   return (
@@ -227,10 +191,6 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
             <p className="text-[15px] text-ink-muted leading-relaxed flex items-center gap-2">
               <AiDots /> Writing summary…
             </p>
-          ) : (ai.translating && !ai.translated) ? (
-            <p className="text-[15px] text-ink-muted leading-relaxed flex items-center gap-2">
-              <AiDots /> Translating…
-            </p>
           ) : bodyText ? (
             <p className="text-[15px] leading-relaxed text-ink">
               {bodyText}
@@ -238,68 +198,17 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
           ) : null}
         </div>
 
-        {/* Language / translate pickers */}
-        {showLangPicker && !ai.summarizing && (
-          <div className="pt-3 flex flex-wrap gap-1.5">
-            {SUMMARY_LANGS.map(({ code, label, flag }) => (
-              <button
-                key={code}
-                onClick={() => { setShowLangPicker(false); ai.summarize(label); }}
-                className="text-xs px-2.5 py-1 rounded-full bg-surface2 border border-hairline text-ink hover:border-accent transition-colors"
-              >
-                {flag} {code}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {showTranslate && (
-          <div className="pt-3 flex flex-wrap gap-1.5">
-            {TRANSLATE_LANGS.map(lang => (
-              <button
-                key={lang}
-                onClick={() => { setShowTranslate(false); ai.translate(lang); }}
-                className="text-xs px-2.5 py-1 rounded-full bg-surface2 border border-hairline text-ink hover:border-accent transition-colors"
-              >
-                {lang}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Meta row: time · source | AI actions */}
+        {/* Meta row: time · source | Newsroom */}
         <div className="mt-3 pt-3 border-t border-hairline flex items-center justify-between gap-2 flex-shrink-0">
           <p className="text-[11px] text-ink-muted truncate">
             {timeAgo(item.pubDate)} · {item.sourceName}
           </p>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <button
-              onClick={onNewsroom}
-              className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors"
-            >
-              ✦ Newsroom
-            </button>
-            <button
-              onClick={() => { setShowLangPicker(v => !v); setShowTranslate(false); }}
-              className={`text-[11px] font-medium transition-colors ${showLangPicker ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
-            >
-              ✦ AI
-            </button>
-            <button
-              onClick={() => { setShowTranslate(v => !v); setShowLangPicker(false); }}
-              className={`text-[11px] transition-colors ${showTranslate ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
-            >
-              🌐
-            </button>
-            {(ai.aiSummary || ai.translated) && !ai.summarizing && (
-              <button
-                onClick={() => { ai.reset(); autoTried.current = true; setShowLangPicker(false); setShowTranslate(false); }}
-                className="text-[11px] text-ink-muted hover:text-ink transition-colors"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          <button
+            onClick={onNewsroom}
+            className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors flex-shrink-0"
+          >
+            ✦ Newsroom
+          </button>
         </div>
 
         {/* Read full story */}
@@ -321,9 +230,36 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
 
 export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: number; edition?: string }) {
   const [items, setItems] = useState<NewsItem[]>([]);
+  const [followItems, setFollowItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string>('all');
   const [newsroomStory, setNewsroomStory] = useState<NewsItem | null>(null);
+  const [showFollows, setShowFollows] = useState(false);
+  const [prefsVersion, setPrefsVersion] = useState(0);
+
+  // Daily streak tick + fetch followed-entity stories for My Feed
+  useEffect(() => { touchStreak(); }, []);
+
+  useEffect(() => {
+    const entities = getPrefs().follows.filter(f => f.type === 'entity').slice(0, 3);
+    if (entities.length === 0) { setFollowItems([]); return; }
+    let cancelled = false;
+    (async () => {
+      const batches = await Promise.allSettled(
+        entities.map(f =>
+          fetch(`/api/discover?q=${encodeURIComponent(f.value)}&edition=${edition}&limit=4`)
+            .then(r => r.json())
+        )
+      );
+      if (cancelled) return;
+      const merged: NewsItem[] = [];
+      for (const b of batches) {
+        if (b.status === 'fulfilled' && Array.isArray(b.value.items)) merged.push(...b.value.items);
+      }
+      setFollowItems(merged);
+    })();
+    return () => { cancelled = true; };
+  }, [edition, prefsVersion]);
 
   const fetchNews = useCallback(async () => {
     setLoading(true);
@@ -342,10 +278,19 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
 
   useEffect(() => { fetchNews(); }, [fetchNews, edition]);
 
-  const visible = useMemo(
-    () => items.filter(i => category === 'all' || i.category === category),
-    [items, category]
-  );
+  const visible = useMemo(() => {
+    if (category !== 'all') return items.filter(i => i.category === category);
+    // My Feed: merge followed-entity stories, rank by personal signals
+    const prefs = getPrefs();
+    const seen = new Set(items.map(i => i.link));
+    const merged = [...items, ...followItems.filter(i => i.link && !seen.has(i.link))];
+    return rankFeed(merged, {
+      affinity: prefs.affinity,
+      follows: prefs.follows,
+      readLinks: prefs.readLinks,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, followItems, category, prefsVersion]);
 
   /* ── Deck pager: one gesture = one card ───────────────────────
      Touch keeps native snap scrolling. On desktop (fine pointer)
@@ -469,8 +414,15 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
           </button>
         ))}
         <button
+          onClick={() => setShowFollows(true)}
+          className="ml-auto px-3 py-2.5 text-ink-muted hover:text-accent transition-colors flex-shrink-0 text-sm"
+          title="Manage follows"
+        >
+          ☆
+        </button>
+        <button
           onClick={fetchNews}
-          className="ml-auto px-3.5 py-2.5 text-ink-muted hover:text-accent transition-colors flex-shrink-0 text-sm"
+          className="px-3 py-2.5 text-ink-muted hover:text-accent transition-colors flex-shrink-0 text-sm"
           title="Refresh"
         >
           ↻
@@ -517,6 +469,14 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
             ↓
           </button>
         </div>
+      )}
+
+      {/* ── Follow management sheet ──────────────────────────── */}
+      {showFollows && (
+        <FollowSheet
+          onClose={() => setShowFollows(false)}
+          onChange={() => setPrefsVersion(v => v + 1)}
+        />
       )}
 
       {/* ── Live agent newsroom ──────────────────────────────── */}
