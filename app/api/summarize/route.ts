@@ -15,15 +15,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const { title, snippet, source, targetLanguage } = await req.json();
+  const { title, snippet, source, targetLanguage, wordCount } = await req.json();
 
   if (!title) {
     return Response.json({ error: 'title is required' }, { status: 400 });
   }
 
+  const words = Math.min(Math.max(Number(wordCount) || 60, 40), 120);
+
   const result = streamText({
     model: google('gemini-2.5-flash'),
-    messages: [{ role: 'user', content: buildSummarizePrompt(title, snippet, source, targetLanguage) }],
+    messages: [{ role: 'user', content: buildSummarizePrompt(title, snippet, source, targetLanguage, words) }],
   });
 
   return result.toTextStreamResponse();

@@ -7,6 +7,8 @@ export interface NewsItem {
   contentSnippet?: string;
   content?: string;
   categories?: string[];
+  imageUrl?: string;
+  category: string;
   source: string;
   sourceName: string;
   sourceFlag: string;
@@ -93,10 +95,74 @@ export const NEWS_SOURCES: Record<string, { name: string; url: string; flag: str
   },
 };
 
-const parser = new Parser({
+interface MediaField {
+  $?: { url?: string };
+}
+
+type RawItem = Parser.Item & {
+  mediaContent?: MediaField[];
+  mediaThumbnail?: MediaField | MediaField[];
+  contentEncoded?: string;
+};
+
+const parser: Parser<Record<string, unknown>, RawItem> = new Parser({
   headers: { 'User-Agent': 'NewsAI/1.0 (RSS Reader)' },
   timeout: 8000,
+  customFields: {
+    item: [
+      ['media:content', 'mediaContent', { keepArray: true }],
+      ['media:thumbnail', 'mediaThumbnail'],
+      ['content:encoded', 'contentEncoded'],
+    ],
+  },
 });
+
+export const CATEGORIES = [
+  { key: 'all',           label: 'My Feed',       emoji: '🔥' },
+  { key: 'world',         label: 'World',         emoji: '🌍' },
+  { key: 'politics',      label: 'Politics',      emoji: '🏛️' },
+  { key: 'conflict',      label: 'War & Conflict', emoji: '⚔️' },
+  { key: 'business',      label: 'Business',      emoji: '💼' },
+  { key: 'sports',        label: 'Sports',        emoji: '⚽' },
+  { key: 'tech',          label: 'Tech',          emoji: '💻' },
+  { key: 'science',       label: 'Science',       emoji: '🔬' },
+  { key: 'health',        label: 'Health',        emoji: '🩺' },
+  { key: 'entertainment', label: 'Entertainment', emoji: '🎬' },
+  { key: 'climate',       label: 'Climate',       emoji: '🌱' },
+] as const;
+
+const CATEGORY_KEYWORDS: Record<string, RegExp> = {
+  conflict:      /\b(war|ukraine|gaza|israel|hamas|strike[sd]?|missile|attack|military|troops|ceasefire|invasion|airstrike|drone|conflict|hostage|bombing|nato)\b/i,
+  sports:        /\b(football|soccer|cricket|tennis|olympic|fifa|world cup|premier league|ipl|nba|nfl|formula 1|f1|grand prix|champions league|athlete|tournament|medal|wimbledon)\b/i,
+  business:      /\b(econom(y|ic)|market[s]?|stock[s]?|inflation|gdp|trade|tariff[s]?|earnings|profit|ipo|merger|startup|bank(ing)?|interest rate[s]?|investor|billion|recession|currency)\b/i,
+  tech:          /\b(tech(nology)?|ai|artificial intelligence|software|app|google|apple|microsoft|meta|amazon|cyber|chip[s]?|semiconductor|smartphone|robot|crypto|bitcoin|data breach)\b/i,
+  science:       /\b(science|research(ers)?|space|nasa|spacex|rocket|satellite|telescope|quantum|physics|archaeolog|fossil|dna|astronom)\b/i,
+  health:        /\b(health|covid|vaccine|virus|disease|cancer|hospital|doctor[s]?|outbreak|epidemic|pandemic|mental health|drug|fda|who\b)\b/i,
+  entertainment: /\b(film|movie|bollywood|hollywood|actor|actress|celebrity|music|singer|concert|netflix|oscar[s]?|grammy|festival|tv series|box office)\b/i,
+  climate:       /\b(climate|warming|emission[s]?|carbon|renewable|solar|wind energy|wildfire[s]?|flood(s|ing)?|drought|heatwave|cop\d{2}|environment(al)?)\b/i,
+  politics:      /\b(election[s]?|parliament|president|minister|congress|senate|vote[rs]?|policy|government|coalition|campaign|legislation|referendum|democrat|republican|brexit|eu summit)\b/i,
+};
+
+function categorize(title: string, snippet?: string, categories?: string[]): string {
+  const text = `${title} ${snippet ?? ''} ${(categories ?? []).join(' ')}`;
+  for (const [key, re] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (re.test(text)) return key;
+  }
+  return 'world';
+}
+
+function extractImage(item: RawItem): string | undefined {
+  if (item.enclosure?.url && /image|jpe?g|png|webp/i.test(`${item.enclosure.type ?? ''} ${item.enclosure.url}`)) {
+    return item.enclosure.url;
+  }
+  const media = item.mediaContent?.find(m => m.$?.url);
+  if (media?.$?.url) return media.$.url;
+  const thumb = Array.isArray(item.mediaThumbnail) ? item.mediaThumbnail[0] : item.mediaThumbnail;
+  if (thumb?.$?.url) return thumb.$.url;
+  const html = item.contentEncoded || item.content || '';
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match?.[1];
+}
 
 // 5-minute in-memory cache — prevents hammering 13 RSS feeds on every request
 const RSS_CACHE = new Map<string, { items: NewsItem[]; expiresAt: number }>();
@@ -116,6 +182,8 @@ async function fetchSource(key: string, source: typeof NEWS_SOURCES[string], lim
     contentSnippet: item.contentSnippet?.slice(0, 300),
     content: item.content?.slice(0, 1000),
     categories: item.categories,
+    imageUrl: extractImage(item),
+    category: categorize(item.title || '', item.contentSnippet, item.categories),
     source: key,
     sourceName: source.name,
     sourceFlag: source.flag,
