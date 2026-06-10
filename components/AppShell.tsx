@@ -233,6 +233,14 @@ export default function AppShell() {
               ⬇ Install
             </button>
           )}
+          {/* Mobile Brève AI entry */}
+          <button
+            onClick={() => setChatOpen(true)}
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full bg-accent text-accent-ink text-sm hover:bg-accent-hover transition-colors"
+            title="Brève AI"
+          >
+            ✦
+          </button>
           <ThemeToggle />
           {CLERK_ENABLED && (
             <UserButton afterSignOutUrl="/sign-in" appearance={{ elements: { avatarBox: 'w-7 h-7' } }} />
@@ -304,11 +312,12 @@ export default function AppShell() {
         )}
       </div>
 
-      {/* Floating Brève AI button */}
+      {/* Floating Brève AI button — desktop only; on mobile it lives in the
+          header so it never covers the card's action row */}
       {!chatOpen && (
         <button
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 bg-accent text-accent-ink rounded-full pl-4 pr-5 py-3 font-medium shadow-card hover:bg-accent-hover transition-colors ease-spring"
+          className="hidden lg:flex fixed bottom-5 right-5 z-30 items-center gap-2 bg-accent text-accent-ink rounded-full pl-4 pr-5 py-3 font-medium shadow-card hover:bg-accent-hover transition-colors ease-spring"
         >
           <span className="text-base">✦</span>
           <span className="text-sm">Brève AI</span>

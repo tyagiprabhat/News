@@ -65,14 +65,18 @@ function useArticleAI(item: NewsItem, wordCount: number) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: item.title, snippet: item.contentSnippet, source: item.sourceName, targetLanguage: lang, wordCount, link: item.link }),
       });
-      if (!res.body) throw new Error();
+      if (!res.ok || !res.body) throw new Error();
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let full = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        setAiSummary(prev => (prev ?? '') + decoder.decode(value, { stream: true }));
+        full += decoder.decode(value, { stream: true });
+        setAiSummary(full);
       }
+      // Empty stream (model unavailable) → fall back to the snippet
+      if (!full.trim()) throw new Error();
     } catch {
       setAiSummary(null);
       setSummaryLang(null);
