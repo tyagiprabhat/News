@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import ThemeToggle from '@/components/ThemeToggle';
+import { EDITIONS, type Edition } from '@/lib/gnews';
 
 const CLERK_ENABLED = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -38,6 +39,49 @@ function Wordmark() {
   );
 }
 
+/* Edition picker sheet */
+function EditionSheet({
+  current,
+  onSelect,
+  onClose,
+}: {
+  current: Edition;
+  onSelect: (ed: Edition) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className="relative w-full sm:max-w-sm glass border-t sm:border border-hairline sm:rounded-2xl p-5"
+        style={{ animation: 'sheetUp 0.35s cubic-bezier(0.32,0.72,0,1)' }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-sm font-semibold text-ink">Choose your edition</h2>
+          <button onClick={onClose} className="text-ink-muted hover:text-ink text-sm px-1">✕</button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {EDITIONS.map(ed => (
+            <button
+              key={ed.key}
+              onClick={() => { onSelect(ed); onClose(); }}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-colors ${
+                ed.key === current.key
+                  ? 'border-accent text-ink bg-surface'
+                  : 'border-hairline text-ink-muted hover:text-ink hover:border-accent/50'
+              }`}
+            >
+              <span>{ed.flag}</span>
+              <span className="truncate">{ed.label}</span>
+              {ed.key === current.key && <span className="ml-auto text-accent text-xs">✓</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell() {
   const isDesktop = useIsDesktop();
   const [viewMode, setViewMode] = useState<ViewMode>('web');
@@ -46,6 +90,8 @@ export default function AppShell() {
   const [installed, setInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
+  const [edition, setEdition] = useState<Edition>(EDITIONS[0]);
+  const [showEditionPicker, setShowEditionPicker] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -64,6 +110,15 @@ export default function AppShell() {
       setInstallPrompt(null);
     });
 
+    // Restore saved edition
+    try {
+      const saved = localStorage.getItem('breve-edition');
+      if (saved) {
+        const ed = EDITIONS.find(e => e.key === saved);
+        if (ed) setEdition(ed);
+      }
+    } catch {}
+
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
@@ -75,11 +130,15 @@ export default function AppShell() {
     setInstallPrompt(null);
   };
 
-  // Phone-preview mode is desktop-only; on real mobile we always show the native deck.
+  const handleEditionSelect = (ed: Edition) => {
+    setEdition(ed);
+    try { localStorage.setItem('breve-edition', ed.key); } catch {}
+  };
+
   const phonePreview = isDesktop && viewMode === 'phone';
   const deckWords = isDesktop && viewMode === 'web' ? 90 : 60;
 
-  const feed = <NewsFeed words={deckWords} />;
+  const feed = <NewsFeed words={deckWords} edition={edition.key} />;
 
   return (
     <main className="flex flex-col h-[100dvh] bg-canvas overflow-hidden">
@@ -91,6 +150,16 @@ export default function AppShell() {
         </span>
 
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          {/* Edition pill */}
+          <button
+            onClick={() => setShowEditionPicker(true)}
+            className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink border border-hairline rounded-full px-2.5 py-1 transition-colors"
+            title="Change edition"
+          >
+            <span>{edition.flag}</span>
+            <span className="hidden sm:inline">{edition.key.split(':')[0]}</span>
+          </button>
+
           {/* Desktop device toggle */}
           {isDesktop && (
             <div className="flex items-center rounded-full border border-hairline overflow-hidden">
@@ -161,11 +230,19 @@ export default function AppShell() {
         </div>
       )}
 
+      {/* Edition picker sheet */}
+      {showEditionPicker && (
+        <EditionSheet
+          current={edition}
+          onSelect={handleEditionSelect}
+          onClose={() => setShowEditionPicker(false)}
+        />
+      )}
+
       {/* Main — full-screen InShorts card deck */}
       <div className="flex-1 min-h-0 relative">
         {phonePreview ? (
           <div className="h-full flex items-center justify-center bg-surface2/30 py-5">
-            {/* Phone frame preview on desktop */}
             <div className="relative h-full max-h-[860px] aspect-[9/19] rounded-[2.4rem] border-[6px] border-ink/80 bg-canvas overflow-hidden shadow-card">
               <div className="absolute top-0 inset-x-0 h-5 flex justify-center z-10 pointer-events-none">
                 <span className="w-24 h-5 bg-ink/80 rounded-b-2xl" />

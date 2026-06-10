@@ -2,6 +2,7 @@ import { google } from '@ai-sdk/google';
 import { streamText, generateText, tool } from 'ai';
 import { z } from 'zod';
 import { fetchNewsFeed, searchNews, NEWS_SOURCES, getAllSourceProfiles } from '@/lib/news';
+import { discoverTopic, EDITIONS } from '@/lib/agents/scout';
 import { buildTranslatePrompt } from '@/lib/translate';
 import { buildSummarizePrompt } from '@/lib/summarize';
 import { checkRateLimit, getIp } from '@/lib/rate-limit';
@@ -21,20 +22,26 @@ const SOURCE_LIST = Object.entries(NEWS_SOURCES)
   .map(([key, s]) => `${s.flag} ${s.name} (${key}, ${s.region})`)
   .join(', ');
 
-const SYSTEM_PROMPT = `You are Brève's news agent — an expert analyst, multilingual translator, and briefing writer covering global affairs across every region: the Americas, Europe, Middle East & Africa, Asia-Pacific, and India. You have access to live RSS feeds from ${Object.keys(NEWS_SOURCES).length} trusted free sources:
+const EDITION_LIST = EDITIONS.map(e => `${e.flag} ${e.label} (${e.key})`).join(', ');
 
+const SYSTEM_PROMPT = `You are Brève's news agent — an expert analyst, multilingual translator, and briefing writer covering global affairs across every region and country. You have two sourcing layers:
+
+CURATED BACKBONE (${Object.keys(NEWS_SOURCES).length} trusted outlets, deep snippets + images):
 ${SOURCE_LIST}
 
-Your capabilities:
-1. Fetch and analyze live news from any or all sources
-2. Search for specific topics, people, or events across all feeds
-3. Cross-source profiling — compare wire services vs. editorial outlets on the same story
-4. Trend detection — identify what topics dominate the news landscape
-5. Translation — translate any text between languages (French, German, Spanish, Arabic, Hindi, English, and more)
-6. Editorial analysis — explain how framing differs between wire copy and editorial outlets
-7. Briefings — generate a structured news digest with AI-written 60-word summaries per story, optionally in any language
+GLOBAL DISCOVERY (Google News RSS, any topic, any country, any language — use searchGlobalNews):
+Available editions: ${EDITION_LIST}
 
-Always fetch live news before answering questions about current events. When producing briefings, use the generateBriefing tool. Be concise but thorough — cite article titles and sources.`;
+Your capabilities:
+1. Fetch and analyze live news from curated sources
+2. Search globally — any topic, person, country or event using searchGlobalNews
+3. Cross-source profiling — compare wire services vs. editorial outlets on the same story
+4. Trend detection — identify what topics dominate across regions
+5. Translation — translate any text between languages
+6. Editorial analysis — explain how framing differs between regions and outlet types
+7. Briefings — generate a structured news digest with AI-written 60-word summaries per story
+
+Always use searchGlobalNews for country-specific or niche-topic queries (e.g. "news in Kenya about elections"). Use fetchLatestNews for broad top-news overviews. Be concise but thorough — cite article titles and sources.`;
 
 export async function POST(req: Request) {
   const { allowed, retryAfter } = checkRateLimit(getIp(req), 10);
@@ -79,8 +86,35 @@ export async function POST(req: Request) {
         },
       }),
 
+      searchGlobalNews: tool({
+        description: 'Search Google News globally for any topic, person, event, or country — use this for country-specific, niche, or non-English queries. Returns live results from publishers worldwide.',
+        parameters: z.object({
+          query: z.string().describe('Search query — topic, person, country-specific event, or keyword'),
+          edition: z.string().optional().default('US:en')
+            .describe('Edition key e.g. "FR:fr", "IN:en", "DE:de", "BR:pt". Defaults to US English.'),
+          freshness: z.enum(['1h', '6h', '24h', '7d']).optional().default('24h')
+            .describe('How recent the articles should be'),
+        }),
+        execute: async ({ query, edition, freshness }) => {
+          const items = await discoverTopic(query, edition ?? 'US:en', 10);
+          return {
+            query,
+            edition,
+            count: items.length,
+            articles: items.map(item => ({
+              title: item.title,
+              source: item.sourceName,
+              country: edition?.split(':')[0],
+              pubDate: item.pubDate,
+              snippet: item.contentSnippet,
+              link: item.link,
+            })),
+          };
+        },
+      }),
+
       searchNews: tool({
-        description: 'Search for news articles matching specific keywords or topics across all sources.',
+        description: 'Search for news articles matching specific keywords or topics across curated sources.',
         parameters: z.object({
           query: z.string().describe('Search query — keywords, topic, person, or event to find'),
           source: z.enum([...SOURCE_ENUM, 'all']).optional().default('all')

@@ -298,7 +298,7 @@ const CATEGORY_KEYWORDS: Record<string, RegExp> = {
   politics:      /\b(election[s]?|parliament|president|minister|congress|senate|vote[rs]?|policy|government|coalition|campaign|legislation|referendum|democrat|republican|brexit|eu summit)\b/i,
 };
 
-function categorize(title: string, snippet?: string, categories?: string[]): string {
+export function categorize(title: string, snippet?: string, categories?: string[]): string {
   const text = `${title} ${snippet ?? ''} ${(categories ?? []).join(' ')}`;
   for (const [key, re] of Object.entries(CATEGORY_KEYWORDS)) {
     if (re.test(text)) return key;

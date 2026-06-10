@@ -3,11 +3,13 @@ import type { NewsItem } from '@/lib/news';
 import { NextRequest } from 'next/server';
 import { cacheGet, cacheSet } from '@/lib/cache';
 import { query, HAS_DB } from '@/lib/db';
+import { fetchGNews, topFeedUrl, getEdition } from '@/lib/gnews';
 
 export const runtime = 'nodejs';
 export const revalidate = 300;
 
-const DB_CACHE_TTL = 30 * 60; // 30 minutes
+const DB_CACHE_TTL = 30 * 60;   // 30 min
+const GNEWS_CACHE_TTL = 15 * 60; // 15 min
 
 interface ProcessedStoryRow {
   id: string;
@@ -48,47 +50,86 @@ function rowToNewsItem(row: ProcessedStoryRow): NewsItem & {
 export async function GET(req: NextRequest) {
   const category = req.nextUrl.searchParams.get('source') || undefined;
   const limit = parseInt(req.nextUrl.searchParams.get('limit') || '8', 10);
+  const edition = req.nextUrl.searchParams.get('edition') || 'US:en';
+  const isDefaultEdition = !edition || edition === 'US:en';
 
-  // 1. Try DB-sourced stories (with KV cache layer)
-  if (HAS_DB) {
-    const cacheKey = `db:stories:v1:${category ?? 'all'}:${limit}`;
+  // 1. DB-sourced stories (default edition only — DB has curated content)
+  if (HAS_DB && isDefaultEdition) {
+    const cacheKey = `db:stories:v2:${category ?? 'all'}:${limit}`;
     const cached = await cacheGet(cacheKey);
     if (cached) {
       return Response.json({ items: JSON.parse(cached), fetchedAt: new Date().toISOString(), source: 'db-cache' });
     }
-
     try {
       const whereClause = category && category !== 'all'
-        ? `WHERE expires_at > NOW() AND category = $2`
-        : `WHERE expires_at > NOW()`;
+        ? 'WHERE expires_at > NOW() AND category = $2'
+        : 'WHERE expires_at > NOW()';
       const params: unknown[] = category && category !== 'all' ? [limit, category] : [limit];
-
       const rows = await query<ProcessedStoryRow>(
         `SELECT id, title, summary, category, region,
                 source_keys, source_names, primary_url, image_url,
                 conflict_flag, published_at
-         FROM processed_stories
-         ${whereClause}
-         ORDER BY published_at DESC
-         LIMIT $1`,
+         FROM processed_stories ${whereClause}
+         ORDER BY published_at DESC LIMIT $1`,
         params
       );
-
       if (rows.length >= 3) {
         const items = rows.map(rowToNewsItem);
         await cacheSet(cacheKey, JSON.stringify(items), DB_CACHE_TTL);
         return Response.json({ items, fetchedAt: new Date().toISOString(), source: 'db' });
       }
-    } catch {
-      // Fall through to RSS if DB query fails
-    }
+    } catch { /* fall through */ }
   }
 
-  // 2. Fallback: live RSS feed (existing behaviour, unchanged)
+  // 2. Non-default edition — Google News RSS + curated interleave
+  if (!isDefaultEdition) {
+    const ed = getEdition(edition);
+    const cacheKey = `gnews:v1:${edition}:${category ?? 'all'}:${limit}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return Response.json({ items: JSON.parse(cached), fetchedAt: new Date().toISOString(), source: 'gnews-cache' });
+    }
+    try {
+      const gnItems = await fetchGNews(topFeedUrl(ed), Math.ceil(limit * 0.7));
+      gnItems.forEach(i => { i.sourceFlag = ed.flag; i.region = ed.region; });
+
+      // Blend in curated items from the same region for image-backed cards
+      const curatedItems = await fetchNewsFeed(undefined, Math.ceil(limit * 0.4));
+      const regionMatch = curatedItems.filter(i => i.region === ed.region);
+      const items = interleaveEdition(gnItems, regionMatch, limit);
+
+      if (items.length > 0) {
+        await cacheSet(cacheKey, JSON.stringify(items), GNEWS_CACHE_TTL);
+        return Response.json({ items, fetchedAt: new Date().toISOString(), source: 'gnews', edition });
+      }
+    } catch { /* fall through to RSS */ }
+  }
+
+  // 3. Fallback: live curated RSS (original behaviour)
   try {
     const items = await fetchNewsFeed(category, Math.min(limit, 15));
     return Response.json({ items, fetchedAt: new Date().toISOString(), source: 'rss' });
   } catch {
     return Response.json({ error: 'Failed to fetch news' }, { status: 500 });
   }
+}
+
+// Interleave Google News items with curated items (curated = better images/snippets)
+function interleaveEdition(gnews: NewsItem[], curated: NewsItem[], limit: number): NewsItem[] {
+  const seen = new Set<string>();
+  const result: NewsItem[] = [];
+  const maxCurated = Math.floor(limit * 0.3);
+  let ci = 0;
+  for (const item of gnews) {
+    if (result.length >= limit) break;
+    if (!seen.has(item.link)) { seen.add(item.link); result.push(item); }
+    // Splice in a curated item every 3 gnews items
+    if (ci < maxCurated && result.length % 3 === 0) {
+      while (ci < curated.length) {
+        const c = curated[ci++];
+        if (!seen.has(c.link)) { seen.add(c.link); result.push(c); break; }
+      }
+    }
+  }
+  return result.slice(0, limit);
 }

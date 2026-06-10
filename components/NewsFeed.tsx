@@ -319,7 +319,7 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
 
 /* ── Feed container ────────────────────────────────────────────── */
 
-export default function NewsFeed({ words = 60 }: { words?: number }) {
+export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: number; edition?: string }) {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string>('all');
@@ -328,7 +328,9 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
   const fetchNews = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/news?limit=15');
+      const params = new URLSearchParams({ limit: '15' });
+      if (edition && edition !== 'US:en') params.set('edition', edition);
+      const res = await fetch(`/api/news?${params}`);
       const data = await res.json();
       setItems(data.items || []);
     } catch {
@@ -336,9 +338,9 @@ export default function NewsFeed({ words = 60 }: { words?: number }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [edition]);
 
-  useEffect(() => { fetchNews(); }, [fetchNews]);
+  useEffect(() => { fetchNews(); }, [fetchNews, edition]);
 
   const visible = useMemo(
     () => items.filter(i => category === 'all' || i.category === category),

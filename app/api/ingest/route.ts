@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { fetchNewsFeed } from '@/lib/news';
 import { embedTexts, toVectorLiteral, isDuplicate, findNearestCluster, updateClusterCentroid } from '@/lib/embeddings';
 import { query, HAS_DB } from '@/lib/db';
+import { expandStory } from '@/lib/agents/scout';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -21,6 +22,7 @@ interface IngestStats {
   inserted: number;
   clustersCreated: number;
   clustersUpdated: number;
+  coverageExpanded: number;
   errors: string[];
 }
 
@@ -49,6 +51,7 @@ async function handler(req: NextRequest) {
     inserted: 0,
     clustersCreated: 0,
     clustersUpdated: 0,
+    coverageExpanded: 0,
     errors: [],
   };
 
@@ -152,6 +155,46 @@ async function handler(req: NextRequest) {
         );
       }
     }
+
+    // 6. Expand global coverage for clusters that just crossed ≥2 articles (max 3/run)
+    // No Gemini calls — pure Google News RSS discovery.
+    try {
+      const richClusters = await query<{ id: string; representative_title: string }>(
+        `SELECT id, representative_title FROM article_clusters
+         WHERE article_count >= 2 AND status = 'pending'
+           AND pipeline_started_at IS NULL
+         ORDER BY updated_at DESC LIMIT 3`
+      );
+      for (const cluster of richClusters) {
+        if (Date.now() - startTime > 240_000) break;
+        try {
+          const report = await expandStory({ title: cluster.representative_title ?? '' });
+          for (const item of report.items.slice(0, 8)) {
+            if (!item.link) continue;
+            await query(
+              `INSERT INTO cluster_coverage (cluster_id, publisher, title, url, country, pub_date)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               ON CONFLICT (url) DO NOTHING`,
+              [
+                cluster.id,
+                item.sourceName,
+                item.title,
+                item.link,
+                item.region,
+                item.pubDate,
+              ]
+            );
+            stats.coverageExpanded++;
+          }
+        } catch { /* non-fatal */ }
+      }
+    } catch { /* non-fatal */ }
+
+    // 7. Purge articles and coverage older than 30 days (housekeeping)
+    try {
+      await query(`DELETE FROM cluster_coverage WHERE discovered_at < NOW() - INTERVAL '30 days'`);
+      await query(`DELETE FROM articles WHERE ingested_at < NOW() - INTERVAL '30 days'`);
+    } catch { /* non-fatal */ }
 
     return Response.json({
       stats,
