@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/themes';
+import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
 import SwRegister from '@/components/SwRegister';
 
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased">
         {children}
         <SwRegister />
+        <Analytics />
       </body>
     </html>
   );
