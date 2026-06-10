@@ -23,12 +23,16 @@ interface ProcessedStoryRow {
   image_url: string | null;
   conflict_flag: boolean;
   published_at: string;
+  coverage_count: number;
+  country_count: number;
 }
 
 function rowToNewsItem(row: ProcessedStoryRow): NewsItem & {
   _fromDB: true;
   _conflictFlag: boolean;
   _storyId: string;
+  _clusterSize: number;
+  _countries: number;
 } {
   return {
     title: row.title,
@@ -44,6 +48,8 @@ function rowToNewsItem(row: ProcessedStoryRow): NewsItem & {
     _fromDB: true,
     _conflictFlag: row.conflict_flag,
     _storyId: row.id,
+    _clusterSize: row.source_keys.length + Number(row.coverage_count ?? 0),
+    _countries: Number(row.country_count ?? 0),
   };
 }
 
@@ -66,11 +72,13 @@ export async function GET(req: NextRequest) {
         : 'WHERE expires_at > NOW()';
       const params: unknown[] = category && category !== 'all' ? [limit, category] : [limit];
       const rows = await query<ProcessedStoryRow>(
-        `SELECT id, title, summary, category, region,
-                source_keys, source_names, primary_url, image_url,
-                conflict_flag, published_at
-         FROM processed_stories ${whereClause}
-         ORDER BY published_at DESC LIMIT $1`,
+        `SELECT ps.id, ps.title, ps.summary, ps.category, ps.region,
+                ps.source_keys, ps.source_names, ps.primary_url, ps.image_url,
+                ps.conflict_flag, ps.published_at,
+                (SELECT COUNT(*) FROM cluster_coverage cc WHERE cc.cluster_id = ps.cluster_id) AS coverage_count,
+                (SELECT COUNT(DISTINCT cc.country) FROM cluster_coverage cc WHERE cc.cluster_id = ps.cluster_id) AS country_count
+         FROM processed_stories ps ${whereClause}
+         ORDER BY ps.published_at DESC LIMIT $1`,
         params
       );
       if (rows.length >= 3) {

@@ -5,6 +5,8 @@ import { CATEGORIES } from '@/lib/news';
 import Newsroom from '@/components/Newsroom';
 import FollowSheet from '@/components/FollowSheet';
 import MorningBrief from '@/components/MorningBrief';
+import CoverageBar from '@/components/CoverageBar';
+import StoryQA from '@/components/StoryQA';
 import { getPrefs, recordDwell, markRead, touchStreak } from '@/lib/prefs';
 import { rankFeed } from '@/lib/ranking';
 import type { Briefing } from '@/lib/briefing';
@@ -20,6 +22,11 @@ interface NewsItem {
   source: string;
   sourceName: string;
   sourceFlag: string;
+  // Optional fields emitted for DB-backed (cluster-verified) stories
+  _fromDB?: boolean;
+  _storyId?: string;
+  _clusterSize?: number;
+  _countries?: number;
 }
 
 const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
@@ -92,6 +99,7 @@ function AiDots() {
 function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: number; onNewsroom: () => void }) {
   const ai = useArticleAI(item, words);
   const [imgFailed, setImgFailed] = useState(false);
+  const [showQA, setShowQA] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const autoTried = useRef(false);
 
@@ -187,6 +195,24 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
           {item.title}
         </h2>
 
+        {/* Cross-checked chip + coverage transparency */}
+        {(item._clusterSize ?? 0) >= 2 && (
+          <div className="mt-1.5 flex items-center gap-3">
+            {(item._clusterSize ?? 0) >= 3 && (
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+                ✓ Cross-checked
+              </span>
+            )}
+            {item._storyId && (
+              <CoverageBar
+                storyId={item._storyId}
+                clusterSize={item._clusterSize ?? 0}
+                countries={item._countries ?? 0}
+              />
+            )}
+          </div>
+        )}
+
         {/* Body */}
         <div className="mt-3 flex-1">
           {(ai.summarizing && !ai.aiSummary) ? (
@@ -205,13 +231,28 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
           <p className="text-[11px] text-ink-muted truncate">
             {timeAgo(item.pubDate)} · {item.sourceName}
           </p>
-          <button
-            onClick={onNewsroom}
-            className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors flex-shrink-0"
-          >
-            ✦ Newsroom
-          </button>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button
+              onClick={() => setShowQA(true)}
+              className="text-[11px] font-medium text-ink-muted hover:text-accent transition-colors"
+            >
+              Ask ✦
+            </button>
+            <button
+              onClick={onNewsroom}
+              className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors"
+            >
+              ✦ Newsroom
+            </button>
+          </div>
         </div>
+
+        {showQA && (
+          <StoryQA
+            story={{ title: item.title, snippet: ai.aiSummary ?? item.contentSnippet, sourceName: item.sourceName }}
+            onClose={() => setShowQA(false)}
+          />
+        )}
 
         {/* Read full story */}
         <a
