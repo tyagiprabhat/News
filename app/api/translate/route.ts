@@ -1,4 +1,4 @@
-import { groq } from '@ai-sdk/groq';
+import { xai } from '@ai-sdk/xai';
 import { streamText } from 'ai';
 import { buildTranslatePrompt } from '@/lib/translate';
 import { checkRateLimit, getIp } from '@/lib/rate-limit';
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: groq('llama-3.1-8b-instant'),
+    model: xai('grok-2-mini'),
     messages: [{ role: 'user', content: buildTranslatePrompt(text, targetLanguage, sourceLanguage) }],
   });
 

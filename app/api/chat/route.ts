@@ -1,4 +1,4 @@
-import { groq } from '@ai-sdk/groq';
+import { xai } from '@ai-sdk/xai';
 import { streamText, generateText, tool } from 'ai';
 import { z } from 'zod';
 import { fetchNewsFeed, searchNews, NEWS_SOURCES, getAllSourceProfiles } from '@/lib/news';
@@ -9,11 +9,11 @@ import { checkRateLimit, getIp } from '@/lib/rate-limit';
 export const maxDuration = 60;
 export const runtime = 'nodejs';
 
-// Groq free tier:
-// llama-3.3-70b-versatile — 30 RPM, 500 RPD  → used for chat (reasoning + tools)
-// llama-3.1-8b-instant    — 30 RPM, 14,400 RPD → used for summarize/translate (high volume)
-const CHAT_MODEL = groq('llama-3.3-70b-versatile');
-const FAST_MODEL = groq('llama-3.1-8b-instant');
+// xAI (Grok) models — set XAI_API_KEY in Vercel env vars
+// grok-2      → chat agent with tools and analysis
+// grok-2-mini → fast tasks: summarize, translate, briefing inner calls
+const CHAT_MODEL = xai('grok-2');
+const FAST_MODEL = xai('grok-2-mini');
 
 const SOURCE_ENUM = ['ap', 'guardian', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist'] as const;
 
