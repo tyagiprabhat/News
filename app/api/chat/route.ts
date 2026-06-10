@@ -4,11 +4,12 @@ import { z } from 'zod';
 import { fetchNewsFeed, searchNews, NEWS_SOURCES, getAllSourceProfiles } from '@/lib/news';
 import { buildTranslatePrompt } from '@/lib/translate';
 import { buildSummarizePrompt } from '@/lib/summarize';
+import { checkRateLimit, getIp } from '@/lib/rate-limit';
 
 export const maxDuration = 60;
 export const runtime = 'nodejs';
 
-const SOURCE_ENUM = ['ap', 'reuters', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist'] as const;
+const SOURCE_ENUM = ['ap', 'guardian', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist'] as const;
 
 const SYSTEM_PROMPT = `You are an expert analyst, multilingual translator, and news briefing agent covering global affairs with a deep focus on Europe, India, and international politics. You have access to live RSS feeds from 13 trusted free sources:
 
@@ -30,6 +31,14 @@ Your capabilities:
 Always fetch live news before answering questions about current events. When producing briefings, use the generateBriefing tool — it fetches and summarizes stories in parallel. For translations, use translateText. Be concise but thorough — cite article titles and sources.`;
 
 export async function POST(req: Request) {
+  const { allowed, retryAfter } = checkRateLimit(getIp(req), 10);
+  if (!allowed) {
+    return Response.json(
+      { error: 'Too many requests — please wait a moment.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    );
+  }
+
   const { messages } = await req.json();
 
   const result = streamText({

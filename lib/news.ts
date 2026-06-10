@@ -19,11 +19,11 @@ export const NEWS_SOURCES: Record<string, { name: string; url: string; flag: str
     flag: '📰',
     topics: ['Breaking News', 'World', 'US', 'Politics', 'Business'],
   },
-  reuters: {
-    name: 'Reuters',
-    url: 'https://feeds.reuters.com/reuters/topNews',
-    flag: '📡',
-    topics: ['World', 'Business', 'Finance', 'Politics', 'Technology'],
+  guardian: {
+    name: 'The Guardian',
+    url: 'https://www.theguardian.com/world/rss',
+    flag: '🗞️',
+    topics: ['World', 'UK', 'Politics', 'Environment', 'Social Affairs'],
   },
   bbc: {
     name: 'BBC News',
@@ -95,8 +95,35 @@ export const NEWS_SOURCES: Record<string, { name: string; url: string; flag: str
 
 const parser = new Parser({
   headers: { 'User-Agent': 'NewsAI/1.0 (RSS Reader)' },
-  timeout: 10000,
+  timeout: 8000,
 });
+
+// 5-minute in-memory cache — prevents hammering 13 RSS feeds on every request
+const RSS_CACHE = new Map<string, { items: NewsItem[]; expiresAt: number }>();
+const CACHE_TTL = 5 * 60_000;
+
+async function fetchSource(key: string, source: typeof NEWS_SOURCES[string], limit: number): Promise<NewsItem[]> {
+  const cached = RSS_CACHE.get(key);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.items.slice(0, limit);
+  }
+
+  const feed = await parser.parseURL(source.url);
+  const items = (feed.items || []).slice(0, Math.max(limit, 15)).map((item): NewsItem => ({
+    title: item.title || 'Untitled',
+    link: item.link || '',
+    pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
+    contentSnippet: item.contentSnippet?.slice(0, 300),
+    content: item.content?.slice(0, 1000),
+    categories: item.categories,
+    source: key,
+    sourceName: source.name,
+    sourceFlag: source.flag,
+  }));
+
+  RSS_CACHE.set(key, { items, expiresAt: Date.now() + CACHE_TTL });
+  return items.slice(0, limit);
+}
 
 export async function fetchNewsFeed(sourceKey?: string, limit = 10): Promise<NewsItem[]> {
   const sources = sourceKey && NEWS_SOURCES[sourceKey]
@@ -104,27 +131,12 @@ export async function fetchNewsFeed(sourceKey?: string, limit = 10): Promise<New
     : NEWS_SOURCES;
 
   const results = await Promise.allSettled(
-    Object.entries(sources).map(async ([key, source]) => {
-      const feed = await parser.parseURL(source.url);
-      return (feed.items || []).slice(0, limit).map((item): NewsItem => ({
-        title: item.title || 'Untitled',
-        link: item.link || '',
-        pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
-        contentSnippet: item.contentSnippet?.slice(0, 300),
-        content: item.content?.slice(0, 1000),
-        categories: item.categories,
-        source: key,
-        sourceName: source.name,
-        sourceFlag: source.flag,
-      }));
-    })
+    Object.entries(sources).map(([key, source]) => fetchSource(key, source, limit))
   );
 
   const items: NewsItem[] = [];
   for (const result of results) {
-    if (result.status === 'fulfilled') {
-      items.push(...result.value);
-    }
+    if (result.status === 'fulfilled') items.push(...result.value);
   }
 
   return items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
@@ -141,7 +153,7 @@ export function searchNews(items: NewsItem[], query: string): NewsItem[] {
 const SOURCE_TYPES: Record<string, string> = {
   politico: 'Policy/Analysis',
   ap: 'Wire Service',
-  reuters: 'Wire Service',
+  guardian: 'National Newspaper',
   bbc: 'Public Broadcaster',
   npr: 'Public Radio',
   aljazeera: 'International Broadcaster',
