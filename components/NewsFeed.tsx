@@ -103,6 +103,7 @@ function AiDots() {
 function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: number; onNewsroom: () => void }) {
   const ai = useArticleAI(item, words);
   const [imgFailed, setImgFailed] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [showQA, setShowQA] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const autoTried = useRef(false);
@@ -167,7 +168,8 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
             alt=""
             loading="lazy"
             onError={() => setImgFailed(true)}
-            className="w-full h-full object-cover"
+            onLoad={() => setImgLoaded(true)}
+            className={`w-full h-full object-cover transition-opacity duration-500 ease-spring ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         ) : (
           <div className="w-full h-full bg-surface2 flex items-center justify-center">
@@ -229,12 +231,16 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
         {/* Body */}
         <div className="mt-3 flex-1">
           {(ai.summarizing && !ai.aiSummary) ? (
-            <p className="text-[15px] text-ink-muted leading-relaxed flex items-center gap-2">
-              <AiDots /> Writing summary…
-            </p>
+            <div className="space-y-2.5 pt-1" aria-label="Writing summary">
+              <div className="skeleton h-4 w-full" />
+              <div className="skeleton h-4 w-[94%]" />
+              <div className="skeleton h-4 w-[88%]" />
+              <div className="skeleton h-4 w-[55%]" />
+            </div>
           ) : bodyText ? (
             <p className={`${bodyClass} text-ink`}>
               {bodyText}
+              {ai.summarizing && <span className="stream-caret" />}
             </p>
           ) : null}
         </div>

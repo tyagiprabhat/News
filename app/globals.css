@@ -133,3 +133,35 @@ html, body {
   from { transform: translateY(100%); opacity: 0.6; }
   to   { transform: translateY(0); opacity: 1; }
 }
+
+/* Shimmer skeleton — replaces text spinners while a summary loads */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--surface)) 25%,
+    rgb(var(--surface-2)) 50%,
+    rgb(var(--surface)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Streaming cursor — the live edge of AI text as it arrives */
+@keyframes caret {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+.stream-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: rgb(var(--accent));
+  animation: caret 0.9s step-end infinite;
+}

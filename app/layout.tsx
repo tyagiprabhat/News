@@ -19,8 +19,11 @@ const archivo = Archivo({ subsets: ['latin'], variable: '--font-archivo', displa
 const themeScript = `(function(){try{var t=localStorage.getItem('breve-theme')||'noir';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','noir');}})();`;
 
 export const metadata: Metadata = {
-  title: 'Brève',
-  description: 'The world\'s news in 60 words — AI summaries, briefings & translation from 25 global sources',
+  title: {
+    default: 'Brève — The world\'s news in 60 words',
+    template: '%s · Brève',
+  },
+  description: 'Every story that matters, written in 60 words by an AI newsroom that cross-checks coverage worldwide. Any country, any language.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -30,6 +33,17 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icon-192.svg',
     apple: '/icon-192.svg',
+  },
+  openGraph: {
+    title: 'Brève — The world\'s news in 60 words',
+    description: 'Every story that matters, written in 60 words by an AI newsroom that cross-checks coverage worldwide.',
+    siteName: 'Brève',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Brève — The world\'s news in 60 words',
+    description: 'Every story that matters, in 60 words. Any country, any language.',
   },
 };
 

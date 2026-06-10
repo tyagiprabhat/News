@@ -1,11 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0f172a"/>
-  <rect x="100" y="100" width="312" height="236" rx="26" fill="#1e3a5f" stroke="#3b82f6" stroke-width="12"/>
-  <rect x="138" y="142" width="236" height="28" rx="14" fill="#60a5fa"/>
-  <rect x="138" y="190" width="174" height="16" rx="8" fill="#3b82f6" opacity="0.8"/>
-  <rect x="138" y="216" width="204" height="16" rx="8" fill="#3b82f6" opacity="0.8"/>
-  <rect x="138" y="242" width="148" height="16" rx="8" fill="#3b82f6" opacity="0.6"/>
-  <rect x="138" y="268" width="188" height="16" rx="8" fill="#3b82f6" opacity="0.6"/>
-  <rect x="138" y="386" width="236" height="68" rx="34" fill="#2563eb"/>
-  <text x="256" y="431" text-anchor="middle" font-size="34" font-weight="700" font-family="system-ui,sans-serif" fill="white" letter-spacing="2">NEWS AI</text>
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.38" r="0.75">
+      <stop offset="0" stop-color="#1C1C1E"/>
+      <stop offset="1" stop-color="#0A0A0B"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8C95C"/>
+      <stop offset="0.5" stop-color="#D4AF37"/>
+      <stop offset="1" stop-color="#B8962E"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <text x="256" y="326" text-anchor="middle" font-size="278" font-weight="700"
+        font-family="Georgia, 'Times New Roman', serif" fill="url(#gold)">B</text>
+  <rect x="165" y="380" width="182" height="8" rx="4" fill="#D4AF37" opacity="0.85"/>
+  <circle cx="358" cy="150" r="9" fill="#E8C95C"/>
 </svg>

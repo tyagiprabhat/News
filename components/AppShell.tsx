@@ -14,8 +14,6 @@ const CLERK_ENABLED = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const NewsFeed = dynamic(() => import('@/components/NewsFeed'), { ssr: false });
 const ChatInterface = dynamic(() => import('@/components/ChatInterface'), { ssr: false });
 
-type ViewMode = 'web' | 'phone';
-
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -87,7 +85,6 @@ function EditionSheet({
 
 export default function AppShell() {
   const isDesktop = useIsDesktop();
-  const [viewMode, setViewMode] = useState<ViewMode>('web');
   const [chatOpen, setChatOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -161,8 +158,7 @@ export default function AppShell() {
 
   const langFlag = LANGUAGES.find(l => l.label === lang)?.flag ?? '🌐';
 
-  const phonePreview = isDesktop && viewMode === 'phone';
-  const deckWords = isDesktop && viewMode === 'web' ? 90 : 60;
+  const deckWords = isDesktop ? 90 : 60;
 
   const feed = <NewsFeed words={deckWords} edition={edition.key} />;
 
@@ -196,26 +192,6 @@ export default function AppShell() {
             <span>{langFlag}</span>
             <span className="hidden sm:inline">Aa</span>
           </button>
-
-          {/* Desktop device toggle */}
-          {isDesktop && (
-            <div className="flex items-center rounded-full border border-hairline overflow-hidden">
-              <button
-                onClick={() => setViewMode('web')}
-                className={`px-2.5 py-1 text-xs transition-colors ${viewMode === 'web' ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink'}`}
-                title="Web view"
-              >
-                🖥
-              </button>
-              <button
-                onClick={() => setViewMode('phone')}
-                className={`px-2.5 py-1 text-xs transition-colors ${viewMode === 'phone' ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink'}`}
-                title="Mobile preview"
-              >
-                📱
-              </button>
-            </div>
-          )}
 
           {installPrompt && !installed && (
             <button
@@ -296,20 +272,9 @@ export default function AppShell() {
 
       {/* Main — full-screen InShorts card deck */}
       <div className="flex-1 min-h-0 relative">
-        {phonePreview ? (
-          <div className="h-full flex items-center justify-center bg-surface2/30 py-5">
-            <div className="relative h-full max-h-[860px] aspect-[9/19] rounded-[2.4rem] border-[6px] border-ink/80 bg-canvas overflow-hidden shadow-card">
-              <div className="absolute top-0 inset-x-0 h-5 flex justify-center z-10 pointer-events-none">
-                <span className="w-24 h-5 bg-ink/80 rounded-b-2xl" />
-              </div>
-              {feed}
-            </div>
-          </div>
-        ) : (
-          <div className="mx-auto w-full lg:max-w-[560px] h-full lg:border-x lg:border-hairline">
-            {feed}
-          </div>
-        )}
+        <div className="mx-auto w-full lg:max-w-[560px] h-full lg:border-x lg:border-hairline">
+          {feed}
+        </div>
       </div>
 
       {/* Floating Brève AI button — desktop only; on mobile it lives in the
