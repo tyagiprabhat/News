@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CATEGORIES, REGIONS } from '@/lib/news';
 
 interface NewsItem {
@@ -67,7 +67,7 @@ function useArticleAI(item: NewsItem, wordCount: number) {
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: item.title, snippet: item.contentSnippet, source: item.sourceName, targetLanguage: lang, wordCount }),
+        body: JSON.stringify({ title: item.title, snippet: item.contentSnippet, source: item.sourceName, targetLanguage: lang, wordCount, link: item.link }),
       });
       if (!res.body) throw new Error();
       const reader = res.body.getReader();
@@ -144,13 +144,36 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
+  const autoTried = useRef(false);
+
+  // Pre-summarize: when a card scrolls into view, generate its 60/90-word
+  // summary once (in English). Cached server-side, so repeat views are instant.
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !autoTried.current) {
+            autoTried.current = true;
+            ai.summarize('English');
+          }
+        }
+      },
+      { threshold: 0.6 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const bodyText = ai.translated ?? ai.aiSummary ?? truncateWords(item.contentSnippet, words);
   const activeLang = ai.translateLang ?? ai.summaryLang;
   const isBreaking = item.category === 'conflict';
 
   return (
-    <article className="snap-start h-full flex flex-col bg-canvas overflow-hidden">
+    <article ref={cardRef} className="snap-start h-full flex flex-col bg-canvas overflow-hidden">
       {/* Hero image */}
       <div className="relative h-[38%] flex-shrink-0 bg-surface2">
         {item.imageUrl && !imgFailed ? (
@@ -215,7 +238,7 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
           {timeAgo(item.pubDate)} · {item.sourceName}
         </p>
 
-        {showLangPicker && !ai.aiSummary && !ai.summarizing && (
+        {showLangPicker && !ai.summarizing && (
           <div className="pt-2 flex flex-wrap gap-1.5">
             {SUMMARY_LANGS.map(({ code, label, flag }) => (
               <button
@@ -244,24 +267,23 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
         )}
 
         <div className="flex items-center gap-5 py-3">
-          {!ai.aiSummary && !ai.summarizing ? (
-            <button
-              onClick={() => { setShowLangPicker(v => !v); setShowTranslate(false); }}
-              className={`text-sm font-medium ${showLangPicker ? 'text-accent' : 'text-accent/90 hover:text-accent'}`}
-            >
-              ✦ Summary
-            </button>
-          ) : !ai.summarizing && (
-            <button onClick={() => { ai.reset(); setShowLangPicker(false); setShowTranslate(false); }} className="text-sm text-ink-muted hover:text-ink">
-              × Reset
-            </button>
-          )}
+          <button
+            onClick={() => { setShowLangPicker(v => !v); setShowTranslate(false); }}
+            className={`text-sm font-medium ${showLangPicker ? 'text-accent' : 'text-accent/90 hover:text-accent'}`}
+          >
+            ✦ Languages
+          </button>
           <button
             onClick={() => { setShowTranslate(v => !v); setShowLangPicker(false); }}
             className={`text-sm ${showTranslate ? 'text-accent' : 'text-ink-muted hover:text-accent'}`}
           >
             🌐 Translate
           </button>
+          {(ai.aiSummary || ai.translated) && !ai.summarizing && (
+            <button onClick={() => { ai.reset(); autoTried.current = true; setShowLangPicker(false); setShowTranslate(false); }} className="text-sm text-ink-muted hover:text-ink ml-auto">
+              × Reset
+            </button>
+          )}
         </div>
       </div>
 
