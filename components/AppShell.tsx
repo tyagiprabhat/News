@@ -272,7 +272,7 @@ export default function AppShell() {
 
       {/* Main — full-screen InShorts card deck */}
       <div className="flex-1 min-h-0 relative">
-        <div className="mx-auto w-full lg:max-w-[560px] h-full lg:border-x lg:border-hairline">
+        <div className="mx-auto w-full lg:max-w-[680px] h-full lg:border-x lg:border-hairline">
           {feed}
         </div>
       </div>

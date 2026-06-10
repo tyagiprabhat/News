@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from 'react';
 import { CATEGORIES } from '@/lib/news';
 import Newsroom from '@/components/Newsroom';
 import FollowSheet from '@/components/FollowSheet';
@@ -100,48 +100,29 @@ function AiDots() {
 
 /* ── Full-screen InShorts-style card ───────────────────────────── */
 
-function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: number; onNewsroom: () => void }) {
+function FullScreenCard({ item, words, active, onNewsroom }: { item: NewsItem; words: number; active: boolean; onNewsroom: () => void }) {
   const ai = useArticleAI(item, words);
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [showQA, setShowQA] = useState(false);
-  const cardRef = useRef<HTMLElement>(null);
   const autoTried = useRef(false);
 
-  // Auto-summarize in the user's language on view + dwell-time tracking
+  // While this card is front of the stack: auto-summarize once in the
+  // user's language, mark read after 3s, record dwell time on exit.
   useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    let enteredAt = 0;
-    let readTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            enteredAt = Date.now();
-            readTimer = setTimeout(() => markRead(item.link), 3000);
-            if (!autoTried.current) {
-              autoTried.current = true;
-              ai.summarize(getPrefs().lang || 'English');
-            }
-          } else if (enteredAt > 0) {
-            if (readTimer) clearTimeout(readTimer);
-            recordDwell(item, Date.now() - enteredAt);
-            enteredAt = 0;
-          }
-        }
-      },
-      { threshold: 0.6 }
-    );
-    obs.observe(el);
+    if (!active) return;
+    const enteredAt = Date.now();
+    const readTimer = setTimeout(() => markRead(item.link), 3000);
+    if (!autoTried.current) {
+      autoTried.current = true;
+      ai.summarize(getPrefs().lang || 'English');
+    }
     return () => {
-      if (readTimer) clearTimeout(readTimer);
-      if (enteredAt > 0) recordDwell(item, Date.now() - enteredAt);
-      obs.disconnect();
+      clearTimeout(readTimer);
+      recordDwell(item, Date.now() - enteredAt);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [active]);
 
   const bodyText = ai.aiSummary ?? truncateWords(item.contentSnippet, words);
   const activeLang = ai.summaryLang;
@@ -151,13 +132,13 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
   // feels half-empty on tall screens; long ones compact to fit.
   const bodyWords = bodyText ? bodyText.trim().split(/\s+/).length : 0;
   const bodyClass = bodyWords <= 45
-    ? 'text-[17px] leading-[1.65]'
+    ? 'text-[17px] leading-[1.65] lg:text-[19px] lg:leading-[1.75]'
     : bodyWords <= 80
-      ? 'text-[16px] leading-[1.6]'
-      : 'text-[15px] leading-relaxed';
+      ? 'text-[16px] leading-[1.6] lg:text-[18px] lg:leading-[1.7]'
+      : 'text-[15px] leading-relaxed lg:text-[17px] lg:leading-[1.65]';
 
   return (
-    <article ref={cardRef} className="snap-start h-full flex flex-col bg-canvas overflow-hidden">
+    <article className="h-full flex flex-col bg-canvas overflow-hidden">
 
       {/* ── Hero image ─────────────────────────────────────────── */}
       <div className="relative flex-shrink-0" style={{ height: '48%' }}>
@@ -203,10 +184,10 @@ function FullScreenCard({ item, words, onNewsroom }: { item: NewsItem; words: nu
       </div>
 
       {/* ── Content ────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 flex flex-col px-4 pt-4 overflow-y-auto scrollbar-thin">
+      <div className="flex-1 min-h-0 flex flex-col px-4 pt-4 lg:px-10 lg:pt-6 overflow-y-auto scrollbar-thin">
 
-        {/* Title */}
-        <h2 className="font-display text-[23px] font-bold text-ink leading-[1.25] tracking-[-0.01em]">
+        {/* Title — editorial scale on desktop, à la front page */}
+        <h2 className="font-display text-[23px] font-bold text-ink leading-[1.25] tracking-[-0.01em] lg:text-[36px] lg:leading-[1.15] lg:tracking-[-0.015em]">
           {item.title}
         </h2>
 
@@ -381,61 +362,123 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, followItems, category, prefsVersion]);
 
-  /* ── Deck pager: one gesture = one card ───────────────────────
-     Touch keeps native snap scrolling. On desktop (fine pointer)
-     the wheel is intercepted so a single scroll gesture advances
-     exactly one card, with arrow keys and chevrons as well.      */
-  const deckRef = useRef<HTMLDivElement>(null);
+  /* ── Card stack: real cards, real physics ─────────────────────
+     Cards live in a stack: the next card peeks from behind at 94%
+     scale. Touch drags the front card with your finger (rubber-band
+     at the ends); release past the threshold springs it off and
+     promotes the card beneath. Wheel, arrows and chevrons drive the
+     same transitions on desktop.                                   */
+  const stackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
+  const [drag, setDrag] = useState(0);
+  const draggingRef = useRef(false);
   const animating = useRef(false);
   const newsroomOpen = useRef(false);
   newsroomOpen.current = newsroomStory !== null;
-
-  const goTo = useCallback((i: number, total: number) => {
-    const deck = deckRef.current;
-    if (!deck) return;
-    const next = Math.max(0, Math.min(i, total - 1));
-    if (next === indexRef.current && deck.scrollTop === next * deck.clientHeight) return;
-    animating.current = true;
-    indexRef.current = next;
-    setIndex(next);
-    deck.scrollTo({ top: next * deck.clientHeight, behavior: 'smooth' });
-    window.setTimeout(() => { animating.current = false; }, 550);
-  }, []);
 
   const briefVisible = !!brief && category === 'all';
   const totalCards = visible.length + (briefVisible ? 1 : 0);
   const totalRef = useRef(0);
   totalRef.current = totalCards;
 
-  // Wheel paging — non-passive listener so we can preventDefault
-  useEffect(() => {
-    const deck = deckRef.current;
-    if (!deck || !window.matchMedia('(pointer: fine)').matches) return;
+  const goTo = useCallback((i: number, total: number) => {
+    const next = Math.max(0, Math.min(i, total - 1));
+    if (next === indexRef.current) { setDrag(0); return; }
+    animating.current = true;
+    indexRef.current = next;
+    setIndex(next);
+    setDrag(0);
+    window.setTimeout(() => { animating.current = false; }, 520);
+  }, []);
 
-    const onWheel = (e: WheelEvent) => {
-      // Let inner scrollable content (long card bodies) consume the
-      // gesture while it can still move in that direction.
-      let el = e.target as HTMLElement | null;
-      while (el && el !== deck) {
-        if (el.scrollHeight > el.clientHeight + 1) {
-          const down = e.deltaY > 0;
-          const canScroll = down
-            ? el.scrollTop + el.clientHeight < el.scrollHeight - 1
-            : el.scrollTop > 0;
-          if (canScroll) return;
-        }
-        el = el.parentElement;
+  // Let inner scrollable content (long card bodies) consume a gesture
+  // while it can still move in that direction.
+  const innerCanScroll = useCallback((target: HTMLElement | null, down: boolean): boolean => {
+    let el = target;
+    const stack = stackRef.current;
+    while (el && el !== stack) {
+      if (el.scrollHeight > el.clientHeight + 1) {
+        const ok = down
+          ? el.scrollTop + el.clientHeight < el.scrollHeight - 1
+          : el.scrollTop > 0;
+        if (ok) return true;
       }
+      el = el.parentElement;
+    }
+    return false;
+  }, []);
+
+  // Touch: the front card follows the finger
+  useEffect(() => {
+    const stack = stackRef.current;
+    if (!stack) return;
+    let startY = 0, startX = 0, startT = 0;
+    let mode: 'idle' | 'drag' | 'native' = 'idle';
+
+    const onStart = (e: TouchEvent) => {
+      if (animating.current) return;
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      startT = Date.now();
+      mode = 'idle';
+    };
+    const onMove = (e: TouchEvent) => {
+      if (mode === 'native') return;
+      const dy = e.touches[0].clientY - startY;
+      const dx = e.touches[0].clientX - startX;
+      if (mode === 'idle') {
+        if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+        // Horizontal intent (tab bar etc.) or scrollable inner content win
+        if (Math.abs(dx) > Math.abs(dy) || innerCanScroll(e.target as HTMLElement, dy < 0)) {
+          mode = 'native';
+          return;
+        }
+        mode = 'drag';
+        draggingRef.current = true;
+      }
+      e.preventDefault();
+      const rubber = (indexRef.current === 0 && dy > 0)
+        || (indexRef.current >= totalRef.current - 1 && dy < 0);
+      setDrag(rubber ? dy * 0.3 : dy);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (mode !== 'drag') { mode = 'idle'; return; }
+      mode = 'idle';
+      draggingRef.current = false;
+      const dy = e.changedTouches[0].clientY - startY;
+      const velocity = dy / Math.max(1, Date.now() - startT); // px/ms
+      const commit = Math.abs(dy) > stack.clientHeight * 0.22 || Math.abs(velocity) > 0.55;
+      if (commit) {
+        goTo(indexRef.current + (dy < 0 ? 1 : -1), totalRef.current);
+      } else {
+        setDrag(0);
+      }
+    };
+
+    stack.addEventListener('touchstart', onStart, { passive: true });
+    stack.addEventListener('touchmove', onMove, { passive: false });
+    stack.addEventListener('touchend', onEnd, { passive: true });
+    return () => {
+      stack.removeEventListener('touchstart', onStart);
+      stack.removeEventListener('touchmove', onMove);
+      stack.removeEventListener('touchend', onEnd);
+    };
+  }, [goTo, innerCanScroll]);
+
+  // Wheel: one gesture = one card (desktop)
+  useEffect(() => {
+    const stack = stackRef.current;
+    if (!stack || !window.matchMedia('(pointer: fine)').matches) return;
+    const onWheel = (e: WheelEvent) => {
+      if (innerCanScroll(e.target as HTMLElement, e.deltaY > 0)) return;
       e.preventDefault();
       if (animating.current || Math.abs(e.deltaY) < 8) return;
       goTo(indexRef.current + (e.deltaY > 0 ? 1 : -1), totalRef.current);
     };
-
-    deck.addEventListener('wheel', onWheel, { passive: false });
-    return () => deck.removeEventListener('wheel', onWheel);
-  }, [goTo]);
+    stack.addEventListener('wheel', onWheel, { passive: false });
+    return () => stack.removeEventListener('wheel', onWheel);
+  }, [goTo, innerCanScroll]);
 
   // Keyboard paging: ↑/↓, PageUp/Down, j/k, Space
   useEffect(() => {
@@ -455,24 +498,45 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
     return () => window.removeEventListener('keydown', onKey);
   }, [goTo]);
 
-  // Keep the counter honest when touch / native snap moves the deck
-  const onDeckScroll = useCallback(() => {
-    const deck = deckRef.current;
-    if (!deck || animating.current || deck.clientHeight === 0) return;
-    const i = Math.round(deck.scrollTop / deck.clientHeight);
-    if (i !== indexRef.current) {
-      indexRef.current = i;
-      setIndex(i);
-    }
-  }, []);
-
-  // New category = back to the top of the deck
+  // New category = back to the top of the stack
   useEffect(() => {
-    const deck = deckRef.current;
-    if (deck) deck.scrollTop = 0;
     indexRef.current = 0;
     setIndex(0);
+    setDrag(0);
   }, [category]);
+
+  /* Resting/dragging transforms for each stack layer. pos is the card's
+     offset from the front: -1 sits above offscreen, 0 is front, 1 peeks
+     behind at 94% scale, 2 is the deep layer.                          */
+  const SPRING = 'cubic-bezier(0.32, 0.72, 0, 1)';
+  const cardStyle = (pos: number): CSSProperties => {
+    const dragging = draggingRef.current;
+    const t = dragging
+      ? 'none'
+      : `transform 0.5s ${SPRING}, opacity 0.5s ${SPRING}, border-radius 0.5s ${SPRING}, box-shadow 0.5s ${SPRING}`;
+    const h = stackRef.current?.clientHeight ?? 800;
+    const pull = Math.max(0, drag);                    // downward: reveal prev
+    const p = Math.min(1, Math.max(0, -drag) / (h * 0.6)); // upward: promote next
+    const lifted = '0 18px 48px rgb(0 0 0 / 0.5)';
+    if (pos === -1) return {
+      transform: `translateY(calc(-104% + ${pull}px))`,
+      zIndex: 30, transition: t, borderRadius: 24, boxShadow: lifted,
+    };
+    if (pos === 0) return {
+      transform: `translateY(${drag}px)`,
+      zIndex: 20, transition: t,
+      borderRadius: drag === 0 ? 0 : 20,
+      boxShadow: drag === 0 ? 'none' : lifted,
+    };
+    if (pos === 1) return {
+      transform: `translateY(${16 * (1 - p)}px) scale(${0.94 + 0.06 * p})`,
+      zIndex: 10, transition: t, borderRadius: 20 * (1 - p),
+    };
+    return {
+      transform: 'translateY(16px) scale(0.94)',
+      zIndex: 5, transition: t, borderRadius: 20, opacity: 0.85,
+    };
+  };
 
   const spinner = (
     <div className="flex items-center justify-center h-full">
@@ -520,26 +584,32 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
         </button>
       </div>
 
-      {/* ── Swipe deck ───────────────────────────────────────── */}
-      <div
-        ref={deckRef}
-        onScroll={onDeckScroll}
-        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain scrollbar-none"
-      >
-        {loading ? spinner : visible.length === 0 ? empty : (
-          <>
-            {briefVisible && brief && (
-              <MorningBrief briefing={brief} catchUp={catchUp} edition={edition} />
-            )}
-            {visible.map((item, i) => (
-              <FullScreenCard
-                key={`${item.link}-${i}`}
-                item={item}
-                words={words}
-                onNewsroom={() => setNewsroomStory(item)}
-              />
-            ))}
-          </>
+      {/* ── Card stack ───────────────────────────────────────── */}
+      <div ref={stackRef} data-deck className="relative flex-1 min-h-0 overflow-hidden overscroll-contain">
+        {loading ? spinner : totalCards === 0 ? empty : (
+          (briefVisible ? [null, ...visible] : visible).map((item, i) => {
+            const pos = i - index;
+            if (pos < -1 || pos > 2) return null;
+            const isBrief = item === null;
+            return (
+              <div
+                key={isBrief ? 'brief' : `${item.link}-${i}`}
+                className="absolute inset-0 overflow-hidden bg-canvas will-change-transform"
+                style={cardStyle(pos)}
+              >
+                {isBrief ? (
+                  <MorningBrief briefing={brief!} catchUp={catchUp} edition={edition} />
+                ) : (
+                  <FullScreenCard
+                    item={item}
+                    words={words}
+                    active={pos === 0}
+                    onNewsroom={() => setNewsroomStory(item)}
+                  />
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
