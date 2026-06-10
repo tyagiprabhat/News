@@ -1,4 +1,4 @@
-import { xai } from '@ai-sdk/xai';
+import { google } from '@ai-sdk/google';
 import { streamText, generateText, tool } from 'ai';
 import { z } from 'zod';
 import { fetchNewsFeed, searchNews, NEWS_SOURCES, getAllSourceProfiles } from '@/lib/news';
@@ -9,11 +9,11 @@ import { checkRateLimit, getIp } from '@/lib/rate-limit';
 export const maxDuration = 60;
 export const runtime = 'nodejs';
 
-// xAI (Grok) models — set XAI_API_KEY in Vercel env vars
-// grok-2      → chat agent with tools and analysis
-// grok-2-mini → fast tasks: summarize, translate, briefing inner calls
-const CHAT_MODEL = xai('grok-2');
-const FAST_MODEL = xai('grok-2-mini');
+// Google Gemini 2.5 Flash — set GOOGLE_GENERATIVE_AI_API_KEY in Vercel env vars
+// Free tier: 1,500 RPD, 15 RPM, 1M TPM — no credit card required
+// aistudio.google.com → Get API key → free forever
+const CHAT_MODEL = google('gemini-2.5-flash');
+const FAST_MODEL = google('gemini-2.5-flash');
 
 const SOURCE_ENUM = ['ap', 'guardian', 'bbc', 'npr', 'aljazeera', 'france24', 'rfi', 'euronews', 'politico', 'dw', 'hindu', 'toi', 'economist'] as const;
 

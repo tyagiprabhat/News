@@ -1,4 +1,4 @@
-import { xai } from '@ai-sdk/xai';
+import { google } from '@ai-sdk/google';
 import { streamText } from 'ai';
 import { buildTranslatePrompt } from '@/lib/translate';
 import { checkRateLimit, getIp } from '@/lib/rate-limit';
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: xai('grok-2-mini'),
+    model: google('gemini-2.5-flash'),
     messages: [{ role: 'user', content: buildTranslatePrompt(text, targetLanguage, sourceLanguage) }],
   });
 
