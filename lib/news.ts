@@ -202,12 +202,32 @@ export async function fetchNewsFeed(sourceKey?: string, limit = 10): Promise<New
     Object.entries(sources).map(([key, source]) => fetchSource(key, source, limit))
   );
 
-  const items: NewsItem[] = [];
+  // Round-robin interleave: newest from each source in turn, so no single
+  // high-frequency feed (e.g. The Hindu) dominates the top of the merged feed
+  const perSource: NewsItem[][] = [];
   for (const result of results) {
-    if (result.status === 'fulfilled') items.push(...result.value);
+    if (result.status === 'fulfilled' && result.value.length > 0) {
+      perSource.push(
+        [...result.value].sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+      );
+    }
+  }
+  // Sources with the freshest top story go first within each round
+  perSource.sort((a, b) => new Date(b[0].pubDate).getTime() - new Date(a[0].pubDate).getTime());
+
+  const items: NewsItem[] = [];
+  for (let round = 0; items.length < perSource.length * limit; round++) {
+    let added = false;
+    for (const sourceItems of perSource) {
+      if (round < sourceItems.length) {
+        items.push(sourceItems[round]);
+        added = true;
+      }
+    }
+    if (!added) break;
   }
 
-  return items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+  return items;
 }
 
 export function searchNews(items: NewsItem[], query: string): NewsItem[] {
