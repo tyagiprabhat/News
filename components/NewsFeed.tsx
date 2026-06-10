@@ -281,7 +281,7 @@ function FullScreenCard({ item, index, words }: { item: NewsItem; index: number;
 
 /* ── Feed container ────────────────────────────────────────────── */
 
-export default function NewsFeed() {
+export default function NewsFeed({ words = 60 }: { words?: number }) {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState<string>('all');
@@ -290,7 +290,7 @@ export default function NewsFeed() {
   const fetchNews = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/news?limit=10');
+      const res = await fetch('/api/news?limit=15');
       const data = await res.json();
       setItems(data.items || []);
     } catch {
@@ -357,16 +357,10 @@ export default function NewsFeed() {
         </button>
       </div>
 
-      {/* Mobile: 60-word swipe deck */}
-      <div className="lg:hidden flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain">
+      {/* InShorts-style full-screen swipe deck */}
+      <div className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain scrollbar-thin">
         {loading ? spinner : visible.length === 0 ? empty :
-          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} index={i} words={60} />)}
-      </div>
-
-      {/* Desktop: 90-word swipe deck */}
-      <div className="hidden lg:block flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain">
-        {loading ? spinner : visible.length === 0 ? empty :
-          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} index={i} words={90} />)}
+          visible.map((item, i) => <FullScreenCard key={`${item.link}-${i}`} item={item} index={i} words={words} />)}
       </div>
     </div>
   );

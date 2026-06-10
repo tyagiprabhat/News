@@ -10,11 +10,23 @@ const CLERK_ENABLED = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const NewsFeed = dynamic(() => import('@/components/NewsFeed'), { ssr: false });
 const ChatInterface = dynamic(() => import('@/components/ChatInterface'), { ssr: false });
 
-type Tab = 'feed' | 'chat';
+type ViewMode = 'web' | 'phone';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  return isDesktop;
 }
 
 function Wordmark() {
@@ -27,7 +39,9 @@ function Wordmark() {
 }
 
 export default function AppShell() {
-  const [activeTab, setActiveTab] = useState<Tab>('feed');
+  const isDesktop = useIsDesktop();
+  const [viewMode, setViewMode] = useState<ViewMode>('web');
+  const [chatOpen, setChatOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
@@ -61,16 +75,42 @@ export default function AppShell() {
     setInstallPrompt(null);
   };
 
+  // Phone-preview mode is desktop-only; on real mobile we always show the native deck.
+  const phonePreview = isDesktop && viewMode === 'phone';
+  const deckWords = isDesktop && viewMode === 'web' ? 90 : 60;
+
+  const feed = <NewsFeed words={deckWords} />;
+
   return (
     <main className="flex flex-col h-[100dvh] bg-canvas overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 h-14 bg-canvas/95 backdrop-blur border-b border-hairline flex items-center px-4 gap-3 z-10">
+      <header className="flex-shrink-0 h-14 bg-canvas/95 backdrop-blur border-b border-hairline flex items-center px-4 gap-3 z-20">
         <Wordmark />
         <span className="hidden md:inline text-xs text-ink-muted truncate ml-2">
           The world&apos;s news in 60 words — 25 sources, 6 regions
         </span>
 
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          {/* Desktop device toggle */}
+          {isDesktop && (
+            <div className="flex items-center rounded-full border border-hairline overflow-hidden">
+              <button
+                onClick={() => setViewMode('web')}
+                className={`px-2.5 py-1 text-xs transition-colors ${viewMode === 'web' ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink'}`}
+                title="Web view"
+              >
+                🖥
+              </button>
+              <button
+                onClick={() => setViewMode('phone')}
+                className={`px-2.5 py-1 text-xs transition-colors ${viewMode === 'phone' ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink'}`}
+                title="Mobile preview"
+              >
+                📱
+              </button>
+            </div>
+          )}
+
           {installPrompt && !installed && (
             <button
               onClick={handleInstall}
@@ -113,10 +153,7 @@ export default function AppShell() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleInstall}
-              className="text-xs bg-accent text-accent-ink px-3 py-1.5 rounded-full font-medium"
-            >
+            <button onClick={handleInstall} className="text-xs bg-accent text-accent-ink px-3 py-1.5 rounded-full font-medium">
               Install
             </button>
             <button onClick={() => setInstallPrompt(null)} className="text-ink-muted text-sm">✕</button>
@@ -124,48 +161,60 @@ export default function AppShell() {
         </div>
       )}
 
-      {/* Content area */}
-      <div className="flex flex-1 overflow-hidden">
-        <aside className={`
-          lg:w-[440px] lg:flex-shrink-0 lg:border-r lg:border-hairline lg:flex
-          ${activeTab === 'feed' ? 'flex' : 'hidden'}
-          flex-col w-full
-        `}>
-          <NewsFeed />
-        </aside>
-
-        <section className={`
-          lg:flex flex-1 min-w-0
-          ${activeTab === 'chat' ? 'flex' : 'hidden'}
-          flex-col
-        `}>
-          <ChatInterface />
-        </section>
+      {/* Main — full-screen InShorts card deck */}
+      <div className="flex-1 min-h-0 relative">
+        {phonePreview ? (
+          <div className="h-full flex items-center justify-center bg-surface2/30 py-5">
+            {/* Phone frame preview on desktop */}
+            <div className="relative h-full max-h-[860px] aspect-[9/19] rounded-[2.4rem] border-[6px] border-ink/80 bg-canvas overflow-hidden shadow-card">
+              <div className="absolute top-0 inset-x-0 h-5 flex justify-center z-10 pointer-events-none">
+                <span className="w-24 h-5 bg-ink/80 rounded-b-2xl" />
+              </div>
+              {feed}
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto w-full lg:max-w-[560px] h-full lg:border-x lg:border-hairline">
+            {feed}
+          </div>
+        )}
       </div>
 
-      {/* Mobile bottom tab bar */}
-      <nav className="lg:hidden flex-shrink-0 flex border-t border-hairline bg-canvas safe-area-inset-bottom">
+      {/* Floating Brève AI button */}
+      {!chatOpen && (
         <button
-          onClick={() => setActiveTab('feed')}
-          className={`relative flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors ${
-            activeTab === 'feed' ? 'text-accent' : 'text-ink-muted'
-          }`}
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 bg-accent text-accent-ink rounded-full pl-4 pr-5 py-3 font-medium shadow-card hover:opacity-90 transition-all active:scale-95"
         >
-          <span className="text-xl leading-none">📰</span>
-          <span className="text-[10px] font-medium mt-0.5 tracking-wide">FEED</span>
-          {activeTab === 'feed' && <span className="absolute top-0 w-10 h-0.5 bg-accent" />}
+          <span className="text-base">✦</span>
+          <span className="text-sm">Brève AI</span>
         </button>
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={`relative flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors ${
-            activeTab === 'chat' ? 'text-accent' : 'text-ink-muted'
-          }`}
-        >
-          <span className="text-xl leading-none">💬</span>
-          <span className="text-[10px] font-medium mt-0.5 tracking-wide">AGENT</span>
-          {activeTab === 'chat' && <span className="absolute top-0 w-10 h-0.5 bg-accent" />}
-        </button>
-      </nav>
+      )}
+
+      {/* Brève AI drawer */}
+      {chatOpen && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setChatOpen(false)}
+          />
+          <div className="relative w-full sm:w-[440px] h-full bg-canvas border-l border-hairline flex flex-col animate-[slideIn_0.2s_ease-out]">
+            <div className="flex-shrink-0 flex items-center justify-between px-4 h-12 border-b border-hairline">
+              <span className="font-display text-sm font-semibold text-ink">✦ Brève AI</span>
+              <button
+                onClick={() => setChatOpen(false)}
+                className="text-ink-muted hover:text-ink text-lg leading-none px-1"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ChatInterface />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

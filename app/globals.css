@@ -94,3 +94,8 @@ html, body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
 }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
