@@ -6,6 +6,7 @@ import { UserButton } from '@clerk/nextjs';
 import ThemeToggle from '@/components/ThemeToggle';
 import StreakBadge from '@/components/StreakBadge';
 import LanguageOnboarding, { LANGUAGES } from '@/components/LanguageOnboarding';
+import TutorialOverlay from '@/components/TutorialOverlay';
 import { EDITIONS, type Edition } from '@/lib/gnews';
 import { getPrefs, updatePrefs, pullServerPrefs } from '@/lib/prefs';
 
@@ -95,6 +96,7 @@ export default function AppShell() {
   const [lang, setLang] = useState('English');
   const [langFirstRun, setLangFirstRun] = useState(false);
   const [viewEnglish, setViewEnglish] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -129,6 +131,12 @@ export default function AppShell() {
       setLang(prefs.lang);
       if (!prefs.langSet) {
         setLangFirstRun(true);
+        // Tutorial will be triggered after language is picked
+      } else {
+        // Returning user: show tutorial if they haven't seen it yet
+        try {
+          if (!localStorage.getItem('breve:tutorial-seen')) setShowTutorial(true);
+        } catch {}
       }
     })();
 
@@ -153,6 +161,10 @@ export default function AppShell() {
     setLang(selected);
     setLangFirstRun(false);
     updatePrefs({ lang: selected, langSet: true });
+    // Show gesture tutorial right after language is confirmed
+    try {
+      if (!localStorage.getItem('breve:tutorial-seen')) setShowTutorial(true);
+    } catch {}
   };
 
   const deckWords = isDesktop ? 90 : 60;
@@ -272,6 +284,16 @@ export default function AppShell() {
           firstRun={true}
           onSelect={handleLangSelect}
           onClose={() => setLangFirstRun(false)}
+        />
+      )}
+
+      {/* Gesture tutorial — shown once after language onboarding or on first session */}
+      {showTutorial && (
+        <TutorialOverlay
+          onDismiss={() => {
+            try { localStorage.setItem('breve:tutorial-seen', '1'); } catch {}
+            setShowTutorial(false);
+          }}
         />
       )}
 

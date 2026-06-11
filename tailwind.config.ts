@@ -34,6 +34,9 @@ const config: Config = {
       boxShadow: {
         card: '0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.18)',
       },
+      zIndex: {
+        60: '60',
+      },
     },
   },
   plugins: [],
