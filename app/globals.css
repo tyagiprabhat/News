@@ -9,19 +9,19 @@
 
 :root,
 [data-theme='noir'] {
-  --canvas: 10 10 11;        /* #0A0A0B ink black */
-  --surface: 28 28 30;       /* #1C1C1E Apple elevated dark */
-  --surface-2: 44 44 46;     /* #2C2C2E secondary elevation */
-  --hairline: 64 61 54;      /* warm low-contrast rule */
-  --ink: 245 242 234;        /* #F5F2EA warm paper */
-  --ink-muted: 156 150 138;
-  --accent: 212 175 55;      /* #D4AF37 antique gold */
-  --accent-hover: 232 201 92; /* #E8C95C lit press state */
-  --accent-ink: 10 10 11;    /* text on gold */
-  --breaking: 193 39 45;     /* #C1272D crimson */
+  --canvas: 6 6 7;            /* near-void premium black          */
+  --surface: 18 17 15;        /* warm dark — aged leather         */
+  --surface-2: 32 30 26;      /* elevated warm layer              */
+  --hairline: 58 52 42;       /* warm gold-tinged divider         */
+  --ink: 250 246 237;         /* cream white — high contrast      */
+  --ink-muted: 148 138 118;   /* warm stone grey                  */
+  --accent: 214 163 30;       /* #D6A31E deep press gold          */
+  --accent-hover: 240 196 68; /* #F0C444 lit gold on hover        */
+  --accent-ink: 6 6 7;        /* text on gold                     */
+  --breaking: 196 42 48;      /* #C42A30 crimson                  */
   --font-display: var(--font-fraunces);
 
-  --scroll-thumb: 64 61 54;
+  --scroll-thumb: 58 52 42;
   color-scheme: dark;
 }
 
@@ -97,9 +97,24 @@
 
   /* Frosted material: content ghosts through bars as it scrolls */
   .glass {
-    background-color: rgb(var(--canvas) / 0.72);
-    backdrop-filter: blur(20px) saturate(1.4);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    background-color: rgb(var(--canvas) / 0.62);
+    backdrop-filter: blur(28px) saturate(1.8) brightness(1.06);
+    -webkit-backdrop-filter: blur(28px) saturate(1.8) brightness(1.06);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07);
+  }
+
+  /* Heavier glass for bottom nav — fades into content above it */
+  .glass-nav {
+    background: linear-gradient(
+      to top,
+      rgb(var(--canvas) / 0.97) 0%,
+      rgb(var(--canvas) / 0.78) 100%
+    );
+    backdrop-filter: blur(32px) saturate(2);
+    -webkit-backdrop-filter: blur(32px) saturate(2);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.06),
+      0 -32px 48px rgb(var(--canvas) / 0.55);
   }
 }
 

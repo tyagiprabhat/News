@@ -6,6 +6,7 @@ import { UserButton } from '@clerk/nextjs';
 import ThemeToggle from '@/components/ThemeToggle';
 import StreakBadge from '@/components/StreakBadge';
 import LanguageOnboarding, { LANGUAGES } from '@/components/LanguageOnboarding';
+import TutorialOverlay from '@/components/TutorialOverlay';
 import { EDITIONS, type Edition } from '@/lib/gnews';
 import { getPrefs, updatePrefs, pullServerPrefs } from '@/lib/prefs';
 
@@ -93,8 +94,9 @@ export default function AppShell() {
   const [edition, setEdition] = useState<Edition>(EDITIONS[0]);
   const [showEditionPicker, setShowEditionPicker] = useState(false);
   const [lang, setLang] = useState('English');
-  const [showLangSheet, setShowLangSheet] = useState(false);
   const [langFirstRun, setLangFirstRun] = useState(false);
+  const [viewEnglish, setViewEnglish] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -129,7 +131,12 @@ export default function AppShell() {
       setLang(prefs.lang);
       if (!prefs.langSet) {
         setLangFirstRun(true);
-        setShowLangSheet(true);
+        // Tutorial will be triggered after language is picked
+      } else {
+        // Returning user: show tutorial if they haven't seen it yet
+        try {
+          if (!localStorage.getItem('breve:tutorial-seen')) setShowTutorial(true);
+        } catch {}
       }
     })();
 
@@ -154,13 +161,17 @@ export default function AppShell() {
     setLang(selected);
     setLangFirstRun(false);
     updatePrefs({ lang: selected, langSet: true });
+    // Show gesture tutorial right after language is confirmed
+    try {
+      if (!localStorage.getItem('breve:tutorial-seen')) setShowTutorial(true);
+    } catch {}
   };
 
-  const langFlag = LANGUAGES.find(l => l.label === lang)?.flag ?? '🌐';
-
   const deckWords = isDesktop ? 90 : 60;
+  const effectiveLang = viewEnglish ? 'English' : lang;
+  const langFlag = (LANGUAGES as { label: string; flag: string }[]).find(l => l.label === lang)?.flag ?? '🌐';
 
-  const feed = <NewsFeed words={deckWords} edition={edition.key} />;
+  const feed = <NewsFeed words={deckWords} edition={edition.key} lang={effectiveLang} />;
 
   return (
     <main className="flex flex-col h-[100dvh] bg-canvas overflow-hidden">
@@ -183,15 +194,21 @@ export default function AppShell() {
             <span className="hidden sm:inline">{edition.key.split(':')[0]}</span>
           </button>
 
-          {/* Reading-language pill */}
-          <button
-            onClick={() => setShowLangSheet(true)}
-            className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink border border-hairline rounded-full px-2.5 py-1 transition-colors"
-            title="Reading language"
-          >
-            <span>{langFlag}</span>
-            <span className="hidden sm:inline">Aa</span>
-          </button>
+          {/* "Read in English" toggle — only shown when a non-English language is active */}
+          {lang !== 'English' && (
+            <button
+              onClick={() => setViewEnglish(v => !v)}
+              className={`flex items-center gap-1 text-xs border rounded-full px-2.5 py-1 transition-colors ${
+                viewEnglish
+                  ? 'border-accent text-ink bg-surface'
+                  : 'border-hairline text-ink-muted hover:text-ink'
+              }`}
+              title={viewEnglish ? `Switch back to ${lang}` : 'Read in English'}
+            >
+              {viewEnglish ? <span>{langFlag}</span> : <span>🇺🇸</span>}
+              <span className="hidden sm:inline">{viewEnglish ? lang.slice(0, 2).toUpperCase() : 'EN'}</span>
+            </button>
+          )}
 
           {installPrompt && !installed && (
             <button
@@ -260,13 +277,23 @@ export default function AppShell() {
         />
       )}
 
-      {/* Language onboarding / settings sheet */}
-      {showLangSheet && (
+      {/* Language onboarding — first run only */}
+      {langFirstRun && (
         <LanguageOnboarding
           current={lang}
-          firstRun={langFirstRun}
+          firstRun={true}
           onSelect={handleLangSelect}
-          onClose={() => setShowLangSheet(false)}
+          onClose={() => setLangFirstRun(false)}
+        />
+      )}
+
+      {/* Gesture tutorial — shown once after language onboarding or on first session */}
+      {showTutorial && (
+        <TutorialOverlay
+          onDismiss={() => {
+            try { localStorage.setItem('breve:tutorial-seen', '1'); } catch {}
+            setShowTutorial(false);
+          }}
         />
       )}
 

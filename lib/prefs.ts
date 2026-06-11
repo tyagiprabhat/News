@@ -22,6 +22,8 @@ export interface Prefs {
   follows: Follow[];
   affinity: Record<string, number>; // keys: cat:{category}, src:{source}
   readLinks: string[];              // ring buffer, newest first
+  savedLinks: string[];             // explicitly saved stories
+  skippedLinks: string[];           // explicitly skipped, filtered from feed
   lastVisit: number;                // epoch ms
   streak: Streak;
 }
@@ -37,6 +39,8 @@ const DEFAULTS: Prefs = {
   follows: [],
   affinity: {},
   readLinks: [],
+  savedLinks: [],
+  skippedLinks: [],
   lastVisit: 0,
   streak: { count: 0, lastDay: '' },
 };
@@ -106,6 +110,32 @@ export function touchStreak(): Streak {
     : { count: 1, lastDay: today };
   updatePrefs({ streak: next, lastVisit: Date.now() });
   return next;
+}
+
+/* ── Save / Skip ───────────────────────────────────────────────── */
+
+const MAX_SAVED_LINKS = 200;
+const MAX_SKIPPED_LINKS = 500;
+
+export function toggleSave(link: string): boolean {
+  const prefs = getPrefs();
+  const isSavedNow = prefs.savedLinks.includes(link);
+  if (isSavedNow) {
+    updatePrefs({ savedLinks: prefs.savedLinks.filter(l => l !== link) });
+    return false;
+  }
+  updatePrefs({ savedLinks: [link, ...prefs.savedLinks].slice(0, MAX_SAVED_LINKS) });
+  return true;
+}
+
+export function isSaved(link: string): boolean {
+  return getPrefs().savedLinks.includes(link);
+}
+
+export function skipLink(link: string): void {
+  const prefs = getPrefs();
+  if (prefs.skippedLinks.includes(link)) return;
+  updatePrefs({ skippedLinks: [link, ...prefs.skippedLinks].slice(0, MAX_SKIPPED_LINKS) });
 }
 
 /* ── Follows ───────────────────────────────────────────────────── */
