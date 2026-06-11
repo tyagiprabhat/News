@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import ThemeToggle from '@/components/ThemeToggle';
 import StreakBadge from '@/components/StreakBadge';
-import LanguageOnboarding from '@/components/LanguageOnboarding';
+import LanguageOnboarding, { LANGUAGES } from '@/components/LanguageOnboarding';
 import { EDITIONS, type Edition } from '@/lib/gnews';
 import { getPrefs, updatePrefs, pullServerPrefs } from '@/lib/prefs';
 
@@ -94,6 +94,7 @@ export default function AppShell() {
   const [showEditionPicker, setShowEditionPicker] = useState(false);
   const [lang, setLang] = useState('English');
   const [langFirstRun, setLangFirstRun] = useState(false);
+  const [viewEnglish, setViewEnglish] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -155,8 +156,10 @@ export default function AppShell() {
   };
 
   const deckWords = isDesktop ? 90 : 60;
+  const effectiveLang = viewEnglish ? 'English' : lang;
+  const langFlag = (LANGUAGES as { label: string; flag: string }[]).find(l => l.label === lang)?.flag ?? '🌐';
 
-  const feed = <NewsFeed words={deckWords} edition={edition.key} />;
+  const feed = <NewsFeed words={deckWords} edition={edition.key} lang={effectiveLang} />;
 
   return (
     <main className="flex flex-col h-[100dvh] bg-canvas overflow-hidden">
@@ -178,6 +181,22 @@ export default function AppShell() {
             <span>{edition.flag}</span>
             <span className="hidden sm:inline">{edition.key.split(':')[0]}</span>
           </button>
+
+          {/* "Read in English" toggle — only shown when a non-English language is active */}
+          {lang !== 'English' && (
+            <button
+              onClick={() => setViewEnglish(v => !v)}
+              className={`flex items-center gap-1 text-xs border rounded-full px-2.5 py-1 transition-colors ${
+                viewEnglish
+                  ? 'border-accent text-ink bg-surface'
+                  : 'border-hairline text-ink-muted hover:text-ink'
+              }`}
+              title={viewEnglish ? `Switch back to ${lang}` : 'Read in English'}
+            >
+              {viewEnglish ? <span>{langFlag}</span> : <span>🇺🇸</span>}
+              <span className="hidden sm:inline">{viewEnglish ? lang.slice(0, 2).toUpperCase() : 'EN'}</span>
+            </button>
+          )}
 
           {installPrompt && !installed && (
             <button

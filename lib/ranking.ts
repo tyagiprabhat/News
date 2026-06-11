@@ -18,6 +18,7 @@ export interface RankSignals {
   affinity: Record<string, number>;
   follows: Follow[];
   readLinks: string[];
+  skippedLinks?: string[];
 }
 
 function recencyDecay(pubDate: string): number {
@@ -53,7 +54,9 @@ export function scoreItem(item: RankableItem, signals: RankSignals): number {
 /* Rank with a diversity guard: never 3 consecutive cards of the same
    category — preserves the variable-reward feel of the swipe deck.  */
 export function rankFeed<T extends RankableItem>(items: T[], signals: RankSignals): T[] {
+  const skipped = new Set(signals.skippedLinks ?? []);
   const scored = items
+    .filter(item => !skipped.has(item.link))
     .map(item => ({ item, score: scoreItem(item, signals) }))
     .sort((a, b) => b.score - a.score);
 

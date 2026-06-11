@@ -7,7 +7,7 @@ import FollowSheet from '@/components/FollowSheet';
 import MorningBrief from '@/components/MorningBrief';
 import CoverageBar from '@/components/CoverageBar';
 import StoryQA from '@/components/StoryQA';
-import { getPrefs, recordDwell, markRead, touchStreak } from '@/lib/prefs';
+import { getPrefs, recordDwell, markRead, touchStreak, toggleSave, skipLink } from '@/lib/prefs';
 import { rankFeed } from '@/lib/ranking';
 import type { Briefing } from '@/lib/briefing';
 
@@ -100,7 +100,10 @@ function AiDots() {
 
 /* ── Full-screen InShorts-style card ───────────────────────────── */
 
-function FullScreenCard({ item, words, active, prefetch, onNewsroom }: { item: NewsItem; words: number; active: boolean; prefetch?: boolean; onNewsroom: () => void }) {
+function FullScreenCard({ item, words, active, prefetch, horizDrag, stackW, lang, onNewsroom }: {
+  item: NewsItem; words: number; active: boolean; prefetch?: boolean;
+  horizDrag?: number; stackW?: number; lang?: string; onNewsroom: () => void;
+}) {
   const ai = useArticleAI(item, words);
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -112,7 +115,7 @@ function FullScreenCard({ item, words, active, prefetch, onNewsroom }: { item: N
   useEffect(() => {
     if (!prefetch || autoTried.current) return;
     autoTried.current = true;
-    ai.summarize(getPrefs().lang || 'English');
+    ai.summarize(lang || getPrefs().lang || 'English');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefetch]);
 
@@ -123,7 +126,7 @@ function FullScreenCard({ item, words, active, prefetch, onNewsroom }: { item: N
     const readTimer = setTimeout(() => markRead(item.link), 3000);
     if (!autoTried.current) {
       autoTried.current = true;
-      ai.summarize(getPrefs().lang || 'English');
+      ai.summarize(lang || getPrefs().lang || 'English');
     }
     return () => {
       clearTimeout(readTimer);
@@ -188,6 +191,24 @@ function FullScreenCard({ item, words, active, prefetch, onNewsroom }: { item: N
           <span className="absolute bottom-2.5 right-3 text-[11px] text-accent bg-canvas/75 backdrop-blur-sm px-2 py-0.5">
             🌐 {activeLang}
           </span>
+        )}
+
+        {/* Swipe action stamps — fade in with drag distance */}
+        {horizDrag !== undefined && stackW && (
+          <>
+            <div
+              className="absolute top-5 left-4 z-10 border-2 border-accent text-accent text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded pointer-events-none select-none"
+              style={{ opacity: Math.min(1, Math.max(0, horizDrag) / (stackW * 0.3)), transform: 'rotate(-15deg)' }}
+            >
+              ✦ SAVED
+            </div>
+            <div
+              className="absolute top-5 right-4 z-10 border-2 border-breaking text-breaking text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded pointer-events-none select-none"
+              style={{ opacity: Math.min(1, Math.max(0, -horizDrag) / (stackW * 0.3)), transform: 'rotate(15deg)' }}
+            >
+              SKIP
+            </div>
+          </>
         )}
       </div>
 
@@ -279,7 +300,7 @@ function FullScreenCard({ item, words, active, prefetch, onNewsroom }: { item: N
 
 /* ── Feed container ────────────────────────────────────────────── */
 
-export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: number; edition?: string }) {
+export default function NewsFeed({ words = 60, edition = 'US:en', lang }: { words?: number; edition?: string; lang?: string }) {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [followItems, setFollowItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -366,6 +387,7 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
       affinity: prefs.affinity,
       follows: prefs.follows,
       readLinks: prefs.readLinks,
+      skippedLinks: prefs.skippedLinks,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, followItems, category, prefsVersion]);
@@ -380,8 +402,11 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
   const [drag, setDrag] = useState(0);
+  const [horizDrag, setHorizDrag] = useState(0);
   const draggingRef = useRef(false);
+  const horizDraggingRef = useRef(false);
   const animating = useRef(false);
+  const [toast, setToast] = useState<'saved' | 'skipped' | null>(null);
   const newsroomOpen = useRef(false);
   newsroomOpen.current = newsroomStory !== null;
 
@@ -389,6 +414,11 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
   const totalCards = visible.length + (briefVisible ? 1 : 0);
   const totalRef = useRef(0);
   totalRef.current = totalCards;
+
+  const showToast = useCallback((type: 'saved' | 'skipped') => {
+    setToast(type);
+    setTimeout(() => setToast(null), 1400);
+  }, []);
 
   const goTo = useCallback((i: number, total: number) => {
     const next = Math.max(0, Math.min(i, total - 1));
@@ -417,12 +447,17 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
     return false;
   }, []);
 
-  // Touch: the front card follows the finger
+  // Touch: vertical = prev/next, horizontal = save (right) / skip (left)
   useEffect(() => {
     const stack = stackRef.current;
     if (!stack) return;
     let startY = 0, startX = 0, startT = 0;
-    let mode: 'idle' | 'drag' | 'native' = 'idle';
+    let mode: 'idle' | 'drag-v' | 'drag-h' | 'native' = 'idle';
+
+    const currentItem = () => {
+      const items = visible;
+      return items[indexRef.current] ?? null;
+    };
 
     const onStart = (e: TouchEvent) => {
       if (animating.current) return;
@@ -437,25 +472,58 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
       const dx = e.touches[0].clientX - startX;
       if (mode === 'idle') {
         if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
-        // Horizontal intent (tab bar etc.) or scrollable inner content win
-        if (Math.abs(dx) > Math.abs(dy) || innerCanScroll(e.target as HTMLElement, dy < 0)) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          mode = 'drag-h';
+          horizDraggingRef.current = true;
+        } else if (innerCanScroll(e.target as HTMLElement, dy < 0)) {
           mode = 'native';
           return;
+        } else {
+          mode = 'drag-v';
+          draggingRef.current = true;
         }
-        mode = 'drag';
-        draggingRef.current = true;
       }
       e.preventDefault();
-      const rubber = (indexRef.current === 0 && dy > 0)
-        || (indexRef.current >= totalRef.current - 1 && dy < 0);
-      setDrag(rubber ? dy * 0.3 : dy);
+      if (mode === 'drag-h') {
+        setHorizDrag(dx);
+      } else {
+        const rubber = (indexRef.current === 0 && dy > 0)
+          || (indexRef.current >= totalRef.current - 1 && dy < 0);
+        setDrag(rubber ? dy * 0.3 : dy);
+      }
     };
     const onEnd = (e: TouchEvent) => {
-      if (mode !== 'drag') { mode = 'idle'; return; }
+      if (mode === 'drag-h') {
+        mode = 'idle';
+        horizDraggingRef.current = false;
+        const dx = e.changedTouches[0].clientX - startX;
+        const elapsed = Math.max(1, Date.now() - startT);
+        const vx = dx / elapsed;
+        const commit = Math.abs(dx) > stack.clientWidth * 0.30 || Math.abs(vx) > 0.60;
+        if (commit) {
+          const item = currentItem();
+          if (dx > 0) {
+            if (item) toggleSave(item.link);
+            showToast('saved');
+          } else {
+            if (item) skipLink(item.link);
+            showToast('skipped');
+          }
+          setHorizDrag(dx > 0 ? stack.clientWidth * 1.1 : -stack.clientWidth * 1.1);
+          setTimeout(() => {
+            setHorizDrag(0);
+            goTo(indexRef.current + 1, totalRef.current);
+          }, 260);
+        } else {
+          setHorizDrag(0);
+        }
+        return;
+      }
+      if (mode !== 'drag-v') { mode = 'idle'; return; }
       mode = 'idle';
       draggingRef.current = false;
       const dy = e.changedTouches[0].clientY - startY;
-      const velocity = dy / Math.max(1, Date.now() - startT); // px/ms
+      const velocity = dy / Math.max(1, Date.now() - startT);
       const commit = Math.abs(dy) > stack.clientHeight * 0.22 || Math.abs(velocity) > 0.55;
       if (commit) {
         goTo(indexRef.current + (dy < 0 ? 1 : -1), totalRef.current);
@@ -472,7 +540,9 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
       stack.removeEventListener('touchmove', onMove);
       stack.removeEventListener('touchend', onEnd);
     };
-  }, [goTo, innerCanScroll]);
+  // visible needs to be in deps so currentItem() is fresh
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goTo, innerCanScroll, showToast, visible]);
 
   // Wheel: one gesture = one card (desktop)
   useEffect(() => {
@@ -488,7 +558,7 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
     return () => stack.removeEventListener('wheel', onWheel);
   }, [goTo, innerCanScroll]);
 
-  // Keyboard paging: ↑/↓, PageUp/Down, j/k, Space
+  // Keyboard paging: ↑/↓/j/k/Space — navigate; →/s — save; ← — skip
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (newsroomOpen.current) return;
@@ -500,11 +570,23 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
       } else if (['ArrowUp', 'PageUp', 'k'].includes(e.key)) {
         e.preventDefault();
         goTo(indexRef.current - 1, totalRef.current);
+      } else if (e.key === 'ArrowRight' || e.key === 's') {
+        e.preventDefault();
+        const item = visible[indexRef.current];
+        if (item) { toggleSave(item.link); showToast('saved'); }
+        goTo(indexRef.current + 1, totalRef.current);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const item = visible[indexRef.current];
+        if (item) { skipLink(item.link); showToast('skipped'); }
+        goTo(indexRef.current + 1, totalRef.current);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [goTo]);
+  // visible in deps so we read the fresh current item
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goTo, showToast, visible]);
 
   // New category = back to the top of the stack
   useEffect(() => {
@@ -518,24 +600,28 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
      behind at 94% scale, 2 is the deep layer.                          */
   const SPRING = 'cubic-bezier(0.32, 0.72, 0, 1)';
   const cardStyle = (pos: number): CSSProperties => {
-    const dragging = draggingRef.current;
-    const t = dragging
+    const anyDragging = draggingRef.current || horizDraggingRef.current;
+    const t = anyDragging
       ? 'none'
       : `transform 0.5s ${SPRING}, opacity 0.5s ${SPRING}, border-radius 0.5s ${SPRING}, box-shadow 0.5s ${SPRING}`;
     const h = stackRef.current?.clientHeight ?? 800;
-    const pull = Math.max(0, drag);                    // downward: reveal prev
-    const p = Math.min(1, Math.max(0, -drag) / (h * 0.6)); // upward: promote next
+    const pull = Math.max(0, drag);
+    const p = Math.min(1, Math.max(0, -drag) / (h * 0.6));
     const lifted = '0 18px 48px rgb(0 0 0 / 0.5)';
     if (pos === -1) return {
       transform: `translateY(calc(-104% + ${pull}px))`,
       zIndex: 30, transition: t, borderRadius: 24, boxShadow: lifted,
     };
-    if (pos === 0) return {
-      transform: `translateY(${drag}px)`,
-      zIndex: 20, transition: t,
-      borderRadius: drag === 0 ? 0 : 20,
-      boxShadow: drag === 0 ? 'none' : lifted,
-    };
+    if (pos === 0) {
+      const rot = horizDrag * 0.007; // max ~±8° at full width
+      const hasDrag = drag !== 0 || horizDrag !== 0;
+      return {
+        transform: `translateX(${horizDrag}px) translateY(${drag}px) rotate(${rot}deg)`,
+        zIndex: 20, transition: t,
+        borderRadius: hasDrag ? 20 : 0,
+        boxShadow: hasDrag ? lifted : 'none',
+      };
+    }
     if (pos === 1) return {
       transform: `translateY(${16 * (1 - p)}px) scale(${0.94 + 0.06 * p})`,
       zIndex: 10, transition: t, borderRadius: 20 * (1 - p),
@@ -582,12 +668,26 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
                     words={words}
                     active={pos === 0}
                     prefetch={pos === 1}
+                    horizDrag={pos === 0 ? horizDrag : 0}
+                    stackW={stackRef.current?.clientWidth ?? 375}
+                    lang={lang}
                     onNewsroom={() => setNewsroomStory(item)}
                   />
                 )}
               </div>
             );
           })
+        )}
+
+        {/* Swipe action toast */}
+        {toast && (
+          <div className="absolute bottom-4 inset-x-0 flex justify-center z-30 pointer-events-none">
+            <span className={`px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wide shadow-card ${
+              toast === 'saved' ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
+            }`}>
+              {toast === 'saved' ? '✦ Saved' : 'Skipped'}
+            </span>
+          </div>
         )}
       </div>
 
