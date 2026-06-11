@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import ThemeToggle from '@/components/ThemeToggle';
 import StreakBadge from '@/components/StreakBadge';
-import LanguageOnboarding, { LANGUAGES } from '@/components/LanguageOnboarding';
+import LanguageOnboarding from '@/components/LanguageOnboarding';
 import { EDITIONS, type Edition } from '@/lib/gnews';
 import { getPrefs, updatePrefs, pullServerPrefs } from '@/lib/prefs';
 
@@ -93,7 +93,6 @@ export default function AppShell() {
   const [edition, setEdition] = useState<Edition>(EDITIONS[0]);
   const [showEditionPicker, setShowEditionPicker] = useState(false);
   const [lang, setLang] = useState('English');
-  const [showLangSheet, setShowLangSheet] = useState(false);
   const [langFirstRun, setLangFirstRun] = useState(false);
 
   useEffect(() => {
@@ -129,7 +128,6 @@ export default function AppShell() {
       setLang(prefs.lang);
       if (!prefs.langSet) {
         setLangFirstRun(true);
-        setShowLangSheet(true);
       }
     })();
 
@@ -156,8 +154,6 @@ export default function AppShell() {
     updatePrefs({ lang: selected, langSet: true });
   };
 
-  const langFlag = LANGUAGES.find(l => l.label === lang)?.flag ?? '🌐';
-
   const deckWords = isDesktop ? 90 : 60;
 
   const feed = <NewsFeed words={deckWords} edition={edition.key} />;
@@ -181,16 +177,6 @@ export default function AppShell() {
           >
             <span>{edition.flag}</span>
             <span className="hidden sm:inline">{edition.key.split(':')[0]}</span>
-          </button>
-
-          {/* Reading-language pill */}
-          <button
-            onClick={() => setShowLangSheet(true)}
-            className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink border border-hairline rounded-full px-2.5 py-1 transition-colors"
-            title="Reading language"
-          >
-            <span>{langFlag}</span>
-            <span className="hidden sm:inline">Aa</span>
           </button>
 
           {installPrompt && !installed && (
@@ -260,13 +246,13 @@ export default function AppShell() {
         />
       )}
 
-      {/* Language onboarding / settings sheet */}
-      {showLangSheet && (
+      {/* Language onboarding — first run only */}
+      {langFirstRun && (
         <LanguageOnboarding
           current={lang}
-          firstRun={langFirstRun}
+          firstRun={true}
           onSelect={handleLangSelect}
-          onClose={() => setShowLangSheet(false)}
+          onClose={() => setLangFirstRun(false)}
         />
       )}
 

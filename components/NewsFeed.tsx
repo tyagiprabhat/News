@@ -100,15 +100,23 @@ function AiDots() {
 
 /* ── Full-screen InShorts-style card ───────────────────────────── */
 
-function FullScreenCard({ item, words, active, onNewsroom }: { item: NewsItem; words: number; active: boolean; onNewsroom: () => void }) {
+function FullScreenCard({ item, words, active, prefetch, onNewsroom }: { item: NewsItem; words: number; active: boolean; prefetch?: boolean; onNewsroom: () => void }) {
   const ai = useArticleAI(item, words);
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [showQA, setShowQA] = useState(false);
   const autoTried = useRef(false);
 
-  // While this card is front of the stack: auto-summarize once in the
-  // user's language, mark read after 3s, record dwell time on exit.
+  // Pre-generate as soon as this card enters the on-deck position (pos=1).
+  // When the user swipes, the summary is already streaming — or done.
+  useEffect(() => {
+    if (!prefetch || autoTried.current) return;
+    autoTried.current = true;
+    ai.summarize(getPrefs().lang || 'English');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefetch]);
+
+  // Front-of-stack: start summarize if prefetch didn't catch it, track dwell.
   useEffect(() => {
     if (!active) return;
     const enteredAt = Date.now();
@@ -161,8 +169,8 @@ function FullScreenCard({ item, words, active, onNewsroom }: { item: NewsItem; w
         {/* Gradient fade into card body */}
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-canvas to-transparent" />
 
-        {/* Category kicker — top left, clears the frosted tab bar */}
-        <span className={`absolute top-12 left-3 text-[10px] font-bold uppercase tracking-[0.16em] px-2 py-0.5 ${
+        {/* Category kicker — top left */}
+        <span className={`absolute top-3 left-3 text-[10px] font-bold uppercase tracking-[0.16em] px-2 py-0.5 ${
           isBreaking
             ? 'bg-breaking text-white'
             : 'bg-canvas/80 backdrop-blur-sm text-accent'
@@ -553,37 +561,6 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
   return (
     <div className="relative flex flex-col h-full bg-canvas">
 
-      {/* ── Category tabs — frosted glass, cards scroll beneath ── */}
-      <div className="absolute top-0 inset-x-0 z-20 flex overflow-x-auto scrollbar-none border-b border-hairline glass">
-        {CATEGORIES.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setCategory(key)}
-            className={`px-3.5 py-2.5 text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap flex-shrink-0 border-b-2 -mb-px transition-colors ${
-              category === key
-                ? 'border-accent text-ink'
-                : 'border-transparent text-ink-muted hover:text-ink'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-        <button
-          onClick={() => setShowFollows(true)}
-          className="ml-auto px-3 py-2.5 text-ink-muted hover:text-accent transition-colors flex-shrink-0 text-sm"
-          title="Manage follows"
-        >
-          ☆
-        </button>
-        <button
-          onClick={fetchNews}
-          className="px-3 py-2.5 text-ink-muted hover:text-accent transition-colors flex-shrink-0 text-sm"
-          title="Refresh"
-        >
-          ↻
-        </button>
-      </div>
-
       {/* ── Card stack ───────────────────────────────────────── */}
       <div ref={stackRef} data-deck className="relative flex-1 min-h-0 overflow-hidden overscroll-contain">
         {loading ? spinner : totalCards === 0 ? empty : (
@@ -604,6 +581,7 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
                     item={item}
                     words={words}
                     active={pos === 0}
+                    prefetch={pos === 1}
                     onNewsroom={() => setNewsroomStory(item)}
                   />
                 )}
@@ -611,6 +589,48 @@ export default function NewsFeed({ words = 60, edition = 'US:en' }: { words?: nu
             );
           })
         )}
+      </div>
+
+      {/* ── Bottom brand + category nav ──────────────────────── */}
+      <div className="flex-shrink-0 flex items-center h-12 glass-nav border-t border-hairline/40 z-20">
+        {/* Brève wordmark */}
+        <div className="flex-shrink-0 flex flex-col leading-none pl-4 pr-3 border-r border-hairline/40">
+          <span className="font-display text-[13px] font-semibold tracking-tight text-accent">Brève</span>
+          <span className="rule-accent w-8 mt-0.5" />
+        </div>
+        {/* Scrollable category pills */}
+        <div className="flex-1 overflow-x-auto scrollbar-none flex items-center px-1">
+          {CATEGORIES.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setCategory(key)}
+              className={`px-2.5 py-1 mx-0.5 my-1.5 text-[10px] font-bold uppercase tracking-[0.12em] whitespace-nowrap flex-shrink-0 rounded-full transition-colors ${
+                category === key
+                  ? 'bg-accent/15 text-ink'
+                  : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {/* Action icons */}
+        <div className="flex-shrink-0 flex items-center pr-1 border-l border-hairline/40">
+          <button
+            onClick={() => setShowFollows(true)}
+            className="w-10 h-12 flex items-center justify-center text-ink-muted hover:text-accent transition-colors text-base"
+            title="Manage follows"
+          >
+            ☆
+          </button>
+          <button
+            onClick={fetchNews}
+            className="w-10 h-12 flex items-center justify-center text-ink-muted hover:text-accent transition-colors text-base"
+            title="Refresh"
+          >
+            ↻
+          </button>
+        </div>
       </div>
 
       {/* ── Desktop pager: chevrons + counter on the right edge ── */}
